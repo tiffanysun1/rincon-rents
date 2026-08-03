@@ -24,8 +24,39 @@ function balancedJsonAfter(source, marker) {
   return null;
 }
 
+function balancedJsonFrom(source, start) {
+  if (start < 0 || source[start] !== "{") return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < source.length; index += 1) {
+    const char = source[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === "{") depth += 1;
+    else if (char === "}" && --depth === 0) return source.slice(start, index + 1);
+  }
+  return null;
+}
+
 export function formatCheckedLabel(date) {
   return `Checked ${new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: PACIFIC_TIME_ZONE,
+  }).format(date)}`;
+}
+
+export function formatPostedLabel(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return "Post date not published";
+  return `Posted ${new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -193,6 +224,59 @@ export function parseSolaireAvailability(html, baseUrl = "https://solairesf.com/
   }).filter((unit) => unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
 }
 
+export function parseSightMapAvailability(html, listingUrl) {
+  const scripts = [...String(html).matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  for (const match of scripts) {
+    let payload;
+    try {
+      payload = JSON.parse(match[1]);
+    } catch {
+      continue;
+    }
+    const apartments = payload?.about?.containsPlace;
+    if (!Array.isArray(apartments)) continue;
+    return apartments.map((apartment) => ({
+      sourceUnitId: String(apartment.name || "").replace(/^APT\s+/i, "").trim(),
+      sourceKind: "unit",
+      floorplan: null,
+      beds: Number(apartment.numberOfBedrooms),
+      baths: Number(apartment.numberOfBathroomsTotal),
+      sqft: Number(apartment.floorSize?.value),
+      rent: Number(apartment.offers?.price),
+      moveIn: apartment.offers?.availabilityStarts || null,
+      listingUrl,
+    })).filter((unit) => unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
+  }
+  return null;
+}
+
+export function parseCompassBuildingAvailability(html, baseUrl) {
+  const source = String(html);
+  const marker = '"units":{"0":{"listings":[';
+  const markerIndex = source.indexOf(marker);
+  if (markerIndex === -1) return null;
+  const start = source.indexOf("{", markerIndex + '"units":'.length);
+  const json = balancedJsonFrom(source, start);
+  if (!json) return null;
+  const payload = JSON.parse(json);
+  return (payload["1"]?.listings || [])
+    .filter((listing) => listing.localizedStatus === "Active")
+    .map((listing) => ({
+      sourceUnitId: String(listing.location?.unitNumber || "").trim(),
+      sourceKind: "unit",
+      floorplan: null,
+      beds: Number(listing.size?.bedrooms),
+      baths: Number(listing.size?.bathrooms),
+      sqft: Number(listing.size?.squareFeet),
+      rent: Number(listing.price?.lastKnown),
+      postedAt: Number.isFinite(listing.date?.lastStatusChange)
+        ? new Date(listing.date.lastStatusChange).toISOString()
+        : null,
+      listingUrl: listing.navigationPageLink ? new URL(listing.navigationPageLink, baseUrl).href : baseUrl,
+    }))
+    .filter((unit) => unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
+}
+
 function pacificIsoDate(date) {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-US", {
@@ -256,7 +340,7 @@ function exactUnitId(unitLabel) {
   return String(unitLabel).match(/\b(?:Unit|Plan)\s+([A-Z0-9]+)/i)?.[1]?.toLowerCase() || null;
 }
 
-export function reconcileExactFeedUnits(existingUnits, freshUnits, checkedAt = new Date()) {
+export function reconcileExactFeedUnits(existingUnits, freshUnits, checkedAt = new Date(), fallbackTemplate = null) {
   const eligibleExisting = existingUnits.filter((unit) => unit.beds >= 1);
   const eligibleFresh = freshUnits.filter((unit) => unit.beds >= 1);
   const byId = new Map(eligibleExisting.map((unit) => [exactUnitId(unit.unit), unit]));
@@ -268,17 +352,26 @@ export function reconcileExactFeedUnits(existingUnits, freshUnits, checkedAt = n
   for (const fresh of eligibleFresh) {
     const key = String(fresh.sourceUnitId).toLowerCase();
     const existing = byId.get(key);
+    const moveIn = fresh.moveIn === undefined ? (existing?.moveIn || null) : fresh.moveIn;
     const values = {
       active: true,
-      unit: fresh.sourceKind === "plan" ? `Plan ${fresh.sourceUnitId}` : `Unit ${fresh.sourceUnitId} · Plan ${fresh.floorplan}`,
+      unit: fresh.sourceKind === "plan"
+        ? `Plan ${fresh.sourceUnitId}`
+        : `Unit ${fresh.sourceUnitId}${fresh.floorplan ? ` · Plan ${fresh.floorplan}` : ""}`,
       beds: fresh.beds,
       baths: fresh.baths,
       sqft: fresh.sqft,
       rent: fresh.rent,
-      moveIn: fresh.moveIn,
-      moveInLabel: formatMoveInLabel(fresh.moveIn, checkedAt),
+      moveIn,
+      moveInLabel: fresh.moveIn === undefined
+        ? (existing?.moveInLabel || "Confirm date")
+        : formatMoveInLabel(moveIn, checkedAt),
       checkedLabel,
     };
+    if (fresh.postedAt) {
+      values.postedAt = fresh.postedAt;
+      values.postedLabel = formatPostedLabel(fresh.postedAt);
+    }
     if (fresh.listingUrl) values.listingUrl = fresh.listingUrl;
     if (Number.isFinite(fresh.fees)) values.fees = fresh.fees;
     if (Number.isFinite(fresh.deposit)) values.deposit = fresh.deposit;
@@ -287,7 +380,7 @@ export function reconcileExactFeedUnits(existingUnits, freshUnits, checkedAt = n
       matchedIds.add(existing.id);
       continue;
     }
-    const template = eligibleExisting.find((unit) => unit.beds === fresh.beds) || eligibleExisting[0];
+    const template = eligibleExisting.find((unit) => unit.beds === fresh.beds) || eligibleExisting[0] || fallbackTemplate;
     if (!template) continue;
     discoveredUnits.push({
       ...template,

@@ -5,10 +5,12 @@ import { refreshState as previousState } from "../refresh-state.js";
 import {
   extractKnownUnitOverride,
   extractRentCafeUnitOverride,
+  parseCompassBuildingAvailability,
   parseEquityAvailability,
   parseEssexAvailabilityText,
   parseModeraAvailabilityCards,
   parseSolaireAvailability,
+  parseSightMapAvailability,
   parseUdrAvailabilityCards,
   rentCafeListingUrlFromOnclick,
   reconcileEquityUnits,
@@ -34,6 +36,26 @@ async function inspectSource(browser, sourceUrl, existingUnits) {
     return reconcileExactFeedUnits(existingUnits, fresh, now);
   }
 
+  if (sourceUrl.includes("rentjasper.com")) {
+    const response = await fetch(sourceUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; RinconRent/1.0; +https://tiffanysun1.github.io/rincon-rents/)" },
+    });
+    if (!response.ok) throw new Error(`official Jasper page returned ${response.status}`);
+    const officialPage = await response.text();
+    const sightMapUrl = officialPage.match(/<iframe\b[^>]*\bsrc=["'](https:\/\/sightmap\.com\/embed\/[^"']+)/i)?.[1];
+    if (!sightMapUrl) throw new Error("official Jasper SightMap was not found");
+    const feedResponse = await fetch(sightMapUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; RinconRent/1.0; +https://tiffanysun1.github.io/rincon-rents/)" },
+    });
+    if (!feedResponse.ok) throw new Error(`official Jasper feed returned ${feedResponse.status}`);
+    const fresh = parseSightMapAvailability(await feedResponse.text(), sourceUrl);
+    if (!fresh?.length) throw new Error("official Jasper unit feed was not found");
+    const template = existingUnits[0]
+      ? { ...existingUnits[0], beds: 1, utilities: 235, active: true }
+      : null;
+    return reconcileExactFeedUnits(existingUnits, fresh, now, template);
+  }
+
   const context = await browser.newContext({
     locale: "en-US",
     timezoneId: "America/Los_Angeles",
@@ -54,6 +76,12 @@ async function inspectSource(browser, sourceUrl, existingUnits) {
       const fresh = parseEquityAvailability(await page.content());
       if (!fresh.length) throw new Error("structured availability was not found");
       return reconcileEquityUnits(existingUnits, fresh, now);
+    }
+
+    if (sourceUrl.includes("compass.com/building/")) {
+      const fresh = parseCompassBuildingAvailability(await page.content(), sourceUrl);
+      if (!fresh) throw new Error("structured Compass rental inventory was not found");
+      return reconcileExactFeedUnits(existingUnits, fresh, now);
     }
 
     if (sourceUrl.includes("moderarinconhill.com")) {
@@ -183,6 +211,7 @@ for (const result of results) {
 
 const nextState = {
   dataUpdatedAt: now.toISOString(),
+  previousDataUpdatedAt: previousState.dataUpdatedAt || null,
   lastRefreshAttemptAt: now.toISOString(),
   verifiedSourceCount: verified.length,
   totalSourceCount: entries.length,

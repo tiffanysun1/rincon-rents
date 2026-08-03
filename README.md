@@ -27,7 +27,7 @@ The included GitHub Actions workflow is the hosting and daily-update path:
 3. The site deploys on every push. At 6:17 AM Pacific each day, a browser-based refresh checks exact units, updates confirmed prices and dates, runs the validation suite, and deploys to GitHub Pages.
 4. **Actions → Refresh listings and deploy → Run workflow** triggers the same process on demand.
 
-The updater is intentionally conservative. Exact unit-and-price matches are required. Solaire is read from its official structured unit feed, including its individual unit URLs. A blocked or changed source keeps its last known good listing and freshness label; if no source can be verified, the workflow fails without changing the displayed update timestamp. The checked-in `refresh-state.js` records the last successful data update and per-source status.
+The updater is intentionally conservative. Exact unit-and-price matches are required. Solaire and Jasper are read from their official structured unit feeds, and the active 403 Main rental inventory is read from Compass while each result links to its individual listing. A blocked or changed source keeps its last known good listing and freshness label; if no source can be verified, the workflow fails without changing the displayed update timestamp. The checked-in `refresh-state.js` records the last successful data update and per-source status.
 
 ## Daily iMessage
 

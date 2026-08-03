@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { units, sourceUnits, monitoredBuildings, snapshotMetadata, monthlyTotal, upfrontTotal, listingLinkLabel } from "./data.js";
+import { units, sourceUnits, monitoredBuildings, snapshotMetadata, isNewListing, monthlyTotal, upfrontTotal, listingLinkLabel } from "./data.js";
 
-assert.equal(sourceUnits.length, 78, "the researched baseline should retain all 78 source offers");
-assert.equal(units.length, 66, "the public snapshot should contain 66 non-studio offers");
+assert.equal(sourceUnits.length, 81, "the researched baseline should retain all 81 source offers");
+assert.equal(units.length, 68, "the public snapshot should contain 68 non-studio offers");
 assert.equal(new Set(units.map((unit) => unit.id)).size, units.length, "unit ids must be unique");
-assert.equal(new Set(units.map((unit) => unit.building)).size, 11, "active non-studio units should cover eleven buildings");
+assert.equal(new Set(units.map((unit) => unit.building)).size, 12, "active non-studio units should cover twelve buildings");
 assert.equal(monitoredBuildings.length, 5, "five additional buildings should remain visible in coverage");
 assert.ok(units.every((unit) => unit.beds >= 1), "studios must never reach the public inventory");
 assert.equal(units.filter((unit) => unit.building === "500 Folsom").length, 15);
@@ -31,7 +31,7 @@ for (const unit of units) {
   );
   assert.ok(upfrontTotal(unit) >= 0, `${unit.id} has invalid upfront costs`);
   assert.ok(
-    unit.listingUrl !== unit.sourceUrl || unit.sourceType === "zillow-condo" || unit.building === "500 Folsom",
+    unit.listingUrl !== unit.sourceUrl || unit.sourceType === "zillow-condo" || unit.sourceType === "compass-condo" || unit.building === "500 Folsom",
     `${unit.id} should use a unit/plan-specific link when its source exposes one`,
   );
 }
@@ -40,11 +40,27 @@ const infinity = units.find((unit) => unit.id === "infinity-6b");
 assert.equal(infinity.parkingIncluded, true);
 assert.equal(monthlyTotal(infinity, true), monthlyTotal(infinity, false), "included parking must not be double-counted");
 
-const newest = units.find((unit) => unit.id === "lumina-27d");
-assert.equal(newest.isNew, true, "the newly discovered LUMINA listing should be marked for pinning");
-assert.equal(newest.listingUrl, "https://www.zillow.com/homedetails/201-Folsom-St-APT-27D-San-Francisco-CA-94105/249698470_zpid/");
-assert.equal(monthlyTotal(newest, true), 7413, "LUMINA should include utilities, insurance, and confirmed parking once");
-assert.equal(listingLinkLabel(newest), "View listing", "an exact Zillow condo URL should be labeled as a listing");
+const lumina = units.find((unit) => unit.id === "lumina-27d");
+assert.equal(lumina.isNew, false, "an eight-day-old listing must not be marked New");
+assert.equal(lumina.listingUrl, "https://www.zillow.com/homedetails/201-Folsom-St-APT-27D-San-Francisco-CA-94105/249698470_zpid/");
+assert.equal(monthlyTotal(lumina, true), 7413, "LUMINA should include utilities, insurance, and confirmed parking once");
+assert.equal(listingLinkLabel(lumina), "View listing", "an exact Zillow condo URL should be labeled as a listing");
+
+const fixedTracker = {
+  dataUpdatedAt: "2026-08-03T05:00:00.000Z",
+  previousDataUpdatedAt: "2026-08-03T04:42:12.630Z",
+};
+assert.equal(isNewListing({ postedAt: "2026-08-01T07:00:00.000Z" }, fixedTracker), true, "a listing at most 48 hours old should be New");
+assert.equal(isNewListing({ postedAt: "2026-07-24T07:00:00.000Z" }, fixedTracker), false, "an older listing should not be New");
+assert.equal(isNewListing({ postedAt: "2026-08-03T04:50:00.000Z" }, fixedTracker), true, "a listing posted after the previous tracker should be New");
+
+const portside = units.find((unit) => unit.id === "portside-717");
+assert.equal(portside.listingUrl, "https://www.compass.com/homedetails/403-Main-St-Unit-717-San-Francisco-CA-94105/1QPSD2_pid/");
+assert.equal(monthlyTotal(portside, true), 6038, "Portside 717 should include electricity, internet, insurance, and confirmed parking");
+assert.equal(listingLinkLabel(portside), "View listing");
+
+assert.equal(units.filter((unit) => unit.building === "Jasper").length, 0, "Jasper studios must remain hidden");
+assert.equal(monitoredBuildings.find((item) => item.building === "Jasper").sourceUrl, "https://www.rentjasper.com/community-map/");
 
 const fremont = units.find((unit) => unit.id === "340-1a-f7");
 assert.equal(monthlyTotal(fremont, true), 6265, "340 Fremont should add modeled recurring costs and parking once");

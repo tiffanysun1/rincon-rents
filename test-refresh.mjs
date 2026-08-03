@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import {
   extractKnownUnitOverride,
   extractRentCafeUnitOverride,
+  parseCompassBuildingAvailability,
   parseEquityAvailability,
   parseEssexAvailabilityText,
   parseModeraAvailabilityCards,
   parseSolaireAvailability,
+  parseSightMapAvailability,
   parseUdrAvailabilityCards,
   rentCafeListingUrlFromOnclick,
   reconcileEquityUnits,
@@ -94,6 +96,46 @@ const solaireResult = reconcileExactFeedUnits([
 assert.equal(solaireResult.overrides["solaire-0509"].listingUrl, "https://solairesf.com/floorplans/unit-exact-0509/");
 assert.equal(solaireResult.overrides["solaire-0509"].fees, 31.06);
 assert.equal(solaireResult.discoveredUnits.length, 0, "Solaire studios must stay out of public data");
+
+const sightMapFixture = `<script type="application/ld+json">${JSON.stringify({
+  about: {
+    containsPlace: [
+      { name: "APT 0101", numberOfBedrooms: 0, numberOfBathroomsTotal: 1, floorSize: { value: 738 }, offers: { price: 4941.15, availabilityStarts: "2026-08-03" } },
+      { name: "APT 1710", numberOfBedrooms: 1, numberOfBathroomsTotal: 1, floorSize: { value: 775 }, offers: { price: 5700, availabilityStarts: "2026-09-01" } },
+    ],
+  },
+})}</script>`;
+const jasper = parseSightMapAvailability(sightMapFixture, "https://www.rentjasper.com/community-map/");
+assert.equal(jasper.length, 2);
+assert.equal(jasper[0].beds, 0);
+const jasperResult = reconcileExactFeedUnits(
+  [{ id: "jasper-0101", building: "Jasper", sourceUrl: "https://www.rentjasper.com/community-map/", unit: "Unit 0101", beds: 0, baths: 1, sqft: 738, rent: 4941.15 }],
+  jasper,
+  new Date("2026-08-03T12:00:00-07:00"),
+  { id: "jasper-template", building: "Jasper", sourceUrl: "https://www.rentjasper.com/community-map/", unit: "Unit template", beds: 1, baths: 1, sqft: 700, rent: 1, utilities: 235 },
+);
+assert.equal(jasperResult.discoveredUnits.length, 1, "a future non-studio Jasper home should be discovered");
+assert.equal(jasperResult.discoveredUnits[0].id, "auto-jasper-1710");
+assert.equal(jasperResult.discoveredUnits[0].beds, 1);
+
+const compassFixture = `before "units":{"0":{"listings":[],"totalNumListings":0},"1":{"listings":[${JSON.stringify({
+  location: { unitNumber: "717" },
+  size: { bedrooms: 1, bathrooms: 1, squareFeet: 922 },
+  localizedStatus: "Active",
+  price: { lastKnown: 5545 },
+  date: { lastStatusChange: 1785567600000 },
+  navigationPageLink: "/homedetails/403-Main-St-Unit-717/1QPSD2_pid/",
+})}],"totalNumListings":1}} after`;
+const compass = parseCompassBuildingAvailability(compassFixture, "https://www.compass.com/building/403-main/");
+assert.equal(compass.length, 1);
+assert.equal(compass[0].sourceUnitId, "717");
+assert.equal(compass[0].postedAt, "2026-08-01T07:00:00.000Z");
+assert.equal(compass[0].listingUrl, "https://www.compass.com/homedetails/403-Main-St-Unit-717/1QPSD2_pid/");
+const compassResult = reconcileExactFeedUnits([
+  { id: "portside-717", building: "Portside", sourceUrl: "https://www.compass.com/building/403-main/", listingUrl: "old", unit: "Unit 717", beds: 1, baths: 1, sqft: 922, rent: 5545, moveIn: "2026-09-07", moveInLabel: "Sep 7" },
+], compass, new Date("2026-08-02T22:00:00-07:00"));
+assert.equal(compassResult.overrides["portside-717"].moveIn, "2026-09-07", "building refresh should preserve the detail-page move-in date");
+assert.equal(compassResult.overrides["portside-717"].postedLabel, "Posted Aug 1, 2026");
 
 const udr = parseUdrAvailabilityCards([
   {

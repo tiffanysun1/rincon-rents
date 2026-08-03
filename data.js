@@ -8,7 +8,7 @@ const URLS = {
   folsom500: "https://www.essexapartmenthomes.com/apartments/san-francisco/500-folsom/floor-plans-and-pricing",
   spera: "https://www.rentcafe.com/apartments/ca/san-francisco/spera/default.aspx",
   solaire: "https://solairesf.com/floorplans/",
-  jasper: "https://www.zillow.com/apartments/san-francisco-ca/jasper/5Yy5Rt/",
+  jasper: "https://www.rentjasper.com/community-map/",
   beale388: "https://www.udr.com/san-francisco-bay-area-apartments/san-francisco/388-beale/apartments-pricing/",
   beale388Fees: "https://www.udr.com/generatepdf/apartmentexpenses?pid=37412",
   fremont399: "https://www.udr.com/san-francisco-bay-area-apartments/san-francisco/399-fremont/apartments-pricing/",
@@ -17,6 +17,7 @@ const URLS = {
   metropolitan2405: "https://www.zillow.com/homedetails/355-1st-St-UNIT-S2405-San-Francisco-CA-94105/64971613_zpid/",
   metropolitan902: "https://www.zillow.com/homedetails/355-1st-St-UNIT-S902-San-Francisco-CA-94105/2089159962_zpid/",
   lumina27d: "https://www.zillow.com/homedetails/201-Folsom-St-APT-27D-San-Francisco-CA-94105/249698470_zpid/",
+  portside: "https://www.compass.com/building/403-main-st-san-francisco-ca-94105/776839530855828237/",
 };
 
 const LISTING_URLS = {
@@ -35,6 +36,8 @@ const LISTING_URLS = {
   fremont333Stevenson: "https://www.333fremont.com/floorplans/san-francisco-CA/333-fremont/stevenson-1160616-1/",
   fremont333Main: "https://www.333fremont.com/floorplans/san-francisco-CA/333-fremont/main-1160648-1/",
   fremont333King: "https://www.333fremont.com/floorplans/san-francisco-CA/333-fremont/king-1160650-1/",
+  portside717: "https://www.compass.com/homedetails/403-Main-St-Unit-717-San-Francisco-CA-94105/1QPSD2_pid/",
+  portside316N: "https://www.compass.com/homedetails/403-Main-St-Unit-316N-San-Francisco-CA-94105/1QGIEU_pid/",
 };
 
 const SPERA_APPLICATIONS = {
@@ -84,16 +87,6 @@ function managed(overrides) {
   };
 }
 
-function zillowBuilding(overrides) {
-  return managed({
-    sourceType: "zillow-building",
-    sourceLabel: "Zillow building feed",
-    checkedLabel: "Checked Jul 28–Aug 2, 2026",
-    confidence: "Medium",
-    ...overrides,
-  });
-}
-
 function propertyFeed(overrides) {
   return managed({
     sourceType: "property-feed",
@@ -118,6 +111,14 @@ function condo(overrides) {
     amenities: ["In-unit laundry", "Concierge"],
     ...overrides,
   };
+}
+
+function compassCondo(overrides) {
+  return condo({
+    sourceType: "compass-condo",
+    sourceLabel: "Compass rental listing",
+    ...overrides,
+  });
 }
 
 const researchedUnits = [
@@ -265,10 +266,34 @@ const researchedUnits = [
     amenities: ["In-unit laundry", "Pool", "Pet friendly"],
   })),
 
-  // Jasper — total monthly prices from the live property feed.
-  zillowBuilding({ id: "jasper-2507", building: "Jasper", address: "45 Lansing St", unit: "Unit 2507", beds: 0, baths: 1, sqft: 598, rent: 4725, fees: 0, utilities: 210, insurance: 15, parking: 500, parkingConfidence: "Estimated valet rate", moveIn: "2026-08-30", moveInLabel: "Aug 30", sourceUrl: URLS.jasper, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the source total. Usage-based utilities, insurance and valet parking are modeled separately.", amenities: ["Valet parking", "In-unit laundry", "Fitness center"] }),
-  zillowBuilding({ id: "jasper-2406", building: "Jasper", address: "45 Lansing St", unit: "Unit 2406", beds: 0, baths: 1, sqft: 611, rent: 4935, fees: 0, utilities: 210, insurance: 15, parking: 500, parkingConfidence: "Estimated valet rate", moveIn: "2026-08-14", moveInLabel: "Aug 14", sourceUrl: URLS.jasper, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the source total. Usage-based utilities, insurance and valet parking are modeled separately.", amenities: ["Valet parking", "In-unit laundry", "Fitness center"] }),
-  zillowBuilding({ id: "jasper-101", building: "Jasper", address: "45 Lansing St", unit: "Unit 101", beds: 0, baths: 1, sqft: 738, rent: 5260, fees: 0, utilities: 210, insurance: 15, parking: 500, parkingConfidence: "Estimated valet rate", moveIn: "2026-08-02", moveInLabel: "Available now", sourceUrl: URLS.jasper, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the source total. Usage-based utilities, insurance and valet parking are modeled separately.", amenities: ["Valet parking", "In-unit laundry", "Fitness center"] }),
+  // Jasper — official SightMap inventory. All four current homes are studios, so the public filter hides them.
+  ...[
+    ["0101", 738, 4941.15, "2026-08-03", "Aug 3"],
+    ["0404", 543, 5289.15, "2026-08-31", "Aug 31"],
+    ["2406", 611, 4934.15, "2026-08-14", "Aug 14"],
+    ["2608", 546, 4891.15, "2026-08-07", "Aug 7"],
+  ].map(([number, sqft, rent, moveIn, moveInLabel]) => managed({
+    id: `jasper-${number}`,
+    building: "Jasper",
+    address: "45 Lansing St",
+    unit: `Unit ${number}`,
+    beds: 0,
+    baths: 1,
+    sqft,
+    rent,
+    fees: 0,
+    utilities: 210,
+    insurance: 15,
+    parking: 500,
+    parkingConfidence: "Estimated valet rate",
+    moveIn,
+    moveInLabel,
+    sourceUrl: URLS.jasper,
+    deposit: 500,
+    listedPriceLabel: "Official total monthly price",
+    pricingNote: "Jasper's official community map includes fixed mandatory monthly charges in the displayed price. Usage-based utilities, insurance, and valet parking remain modeled estimates.",
+    amenities: ["Valet parking", "In-unit laundry", "Fitness center"],
+  })),
 
   // 388 Beale — exact homes and lease links from UDR's official availability page.
   ...[
@@ -310,11 +335,13 @@ const researchedUnits = [
   })),
 
   // Individually listed condos — direct listing detail was checked to avoid stale Zillow search cards.
-  condo({ id: "bridgeview-1501", building: "Bridgeview", address: "400 Beale St", unit: "Unit 1501", beds: 2, baths: 2, sqft: 1223, rent: 7995, utilities: 95, parking: 450, parkingConfidence: "Estimated — listing says contact manager", parkingIncluded: false, moveIn: "2026-08-02", moveInLabel: "Available now", postedLabel: "Posted Aug 2, 2026", sourceUrl: URLS.bridgeview1501, deposit: 7995, listedPriceLabel: "Zillow asking rent", pricingNote: "The listing names garbage, internet and water under property utilities but does not clearly state every inclusion. We estimate remaining energy costs and model one garage space at $450 pending confirmation.", utilitiesIncluded: ["Water", "Garbage", "Internet (verify)"], amenities: ["Balcony", "Fitness center", "Concierge"] }),
-  condo({ id: "infinity-6b", building: "The Infinity", address: "318 Spear St", unit: "Unit 6B", beds: 2, baths: 2, sqft: 1100, rent: 7000, utilities: 135, parking: 0, parkingConfidence: "1 assigned space included", parkingIncluded: true, moveIn: "2026-08-11", moveInLabel: "Aug 11", postedLabel: "Posted Jul 23, 2026", sourceUrl: URLS.infinity6b, deposit: 7000, listedPriceLabel: "Zillow total monthly price", pricingNote: "The owner says one assigned garage space, water, garbage and HOA are included. Estimate covers energy, internet and renter's insurance.", utilitiesIncluded: ["Water", "Garbage"], amenities: ["Parking included", "Heated lap pool", "Central A/C"] }),
-  condo({ id: "metropolitan-s2405", building: "The Metropolitan", address: "355 1st St", unit: "Unit S2405", beds: 2, baths: 2, sqft: 1166, rent: 7250, utilities: 150, parking: 450, parkingConfidence: "Confirmed optional parking", moveIn: "2026-08-31", moveInLabel: "Aug 31", postedLabel: "Posted Jul 21, 2026", sourceUrl: URLS.metropolitan2405, deposit: 14000, listedPriceLabel: "Zillow asking rent", pricingNote: "Water and garbage are included; the listing explicitly prices parking at $450/month. Estimate adds energy, internet and renter's insurance.", utilitiesIncluded: ["Water", "Garbage"], amenities: ["Furnished", "City & bay views", "Central A/C"] }),
-  condo({ id: "metropolitan-s902", building: "The Metropolitan", address: "355 1st St", unit: "Unit S902", beds: 2, baths: 2, sqft: 995, rent: 6850, utilities: 175, parking: 0, parkingConfidence: "1 space included", parkingIncluded: true, moveIn: "2026-08-15", moveInLabel: "Mid-August · confirm", postedLabel: "Posted Jul 21, 2026", sourceUrl: URLS.metropolitan902, deposit: 6850, listedPriceLabel: "Zillow asking rent", pricingNote: "The description says premium underground parking and storage are included. Zillow's header says available now while the description says mid-August, so the date needs confirmation.", utilitiesIncluded: [], amenities: ["Parking included", "Storage included", "Pool & fitness center"] }),
-  condo({ id: "lumina-27d", building: "LUMINA", address: "201 Folsom St", unit: "Unit 27D", beds: 1, baths: 1, sqft: 876, rent: 6895, utilities: 200, parking: 300, parkingConfidence: "Confirmed optional valet parking", moveIn: "2026-09-01", moveInLabel: "Sep 1", postedLabel: "Posted Jul 24, 2026", sourceUrl: URLS.lumina27d, deposit: 6895, listedPriceLabel: "Zillow asking rent", pricingNote: "Compass confirms the $300 parking fee and that the tenant pays electricity and gas. The estimate also includes internet and renter's insurance; confirm all building charges before applying.", amenities: ["Valet parking", "Lap pool", "Bridge views"], isNew: true }),
+  condo({ id: "bridgeview-1501", building: "Bridgeview", address: "400 Beale St", unit: "Unit 1501", beds: 2, baths: 2, sqft: 1223, rent: 7995, utilities: 95, parking: 450, parkingConfidence: "Estimated — listing says contact manager", parkingIncluded: false, moveIn: "2026-08-02", moveInLabel: "Available now", postedAt: "2026-08-02T07:00:00.000Z", postedLabel: "Posted Aug 2, 2026", sourceUrl: URLS.bridgeview1501, deposit: 7995, listedPriceLabel: "Zillow asking rent", pricingNote: "The listing names garbage, internet and water under property utilities but does not clearly state every inclusion. We estimate remaining energy costs and model one garage space at $450 pending confirmation.", utilitiesIncluded: ["Water", "Garbage", "Internet (verify)"], amenities: ["Balcony", "Fitness center", "Concierge"] }),
+  condo({ id: "infinity-6b", building: "The Infinity", address: "318 Spear St", unit: "Unit 6B", beds: 2, baths: 2, sqft: 1100, rent: 7000, utilities: 135, parking: 0, parkingConfidence: "1 assigned space included", parkingIncluded: true, moveIn: "2026-08-11", moveInLabel: "Aug 11", postedAt: "2026-07-23T07:00:00.000Z", postedLabel: "Posted Jul 23, 2026", sourceUrl: URLS.infinity6b, deposit: 7000, listedPriceLabel: "Zillow total monthly price", pricingNote: "The owner says one assigned garage space, water, garbage and HOA are included. Estimate covers energy, internet and renter's insurance.", utilitiesIncluded: ["Water", "Garbage"], amenities: ["Parking included", "Heated lap pool", "Central A/C"] }),
+  condo({ id: "metropolitan-s2405", building: "The Metropolitan", address: "355 1st St", unit: "Unit S2405", beds: 2, baths: 2, sqft: 1166, rent: 7250, utilities: 150, parking: 450, parkingConfidence: "Confirmed optional parking", moveIn: "2026-08-31", moveInLabel: "Aug 31", postedAt: "2026-07-21T07:00:00.000Z", postedLabel: "Posted Jul 21, 2026", sourceUrl: URLS.metropolitan2405, deposit: 14000, listedPriceLabel: "Zillow asking rent", pricingNote: "Water and garbage are included; the listing explicitly prices parking at $450/month. Estimate adds energy, internet and renter's insurance.", utilitiesIncluded: ["Water", "Garbage"], amenities: ["Furnished", "City & bay views", "Central A/C"] }),
+  condo({ id: "metropolitan-s902", building: "The Metropolitan", address: "355 1st St", unit: "Unit S902", beds: 2, baths: 2, sqft: 995, rent: 6850, utilities: 175, parking: 0, parkingConfidence: "1 space included", parkingIncluded: true, moveIn: "2026-08-15", moveInLabel: "Mid-August · confirm", postedAt: "2026-07-21T07:00:00.000Z", postedLabel: "Posted Jul 21, 2026", sourceUrl: URLS.metropolitan902, deposit: 6850, listedPriceLabel: "Zillow asking rent", pricingNote: "The description says premium underground parking and storage are included. Zillow's header says available now while the description says mid-August, so the date needs confirmation.", utilitiesIncluded: [], amenities: ["Parking included", "Storage included", "Pool & fitness center"] }),
+  condo({ id: "lumina-27d", building: "LUMINA", address: "201 Folsom St", unit: "Unit 27D", beds: 1, baths: 1, sqft: 876, rent: 6895, utilities: 200, parking: 300, parkingConfidence: "Confirmed optional valet parking", moveIn: "2026-09-01", moveInLabel: "Sep 1", postedAt: "2026-07-24T07:00:00.000Z", postedLabel: "Posted Jul 24, 2026", sourceUrl: URLS.lumina27d, deposit: 6895, listedPriceLabel: "Zillow asking rent", pricingNote: "Compass confirms the $300 parking fee and that the tenant pays electricity and gas. The estimate also includes internet and renter's insurance; confirm all building charges before applying.", amenities: ["Valet parking", "Lap pool", "Bridge views"] }),
+  compassCondo({ id: "portside-717", building: "Portside", address: "403 Main St", unit: "Unit 717", beds: 1, baths: 1, sqft: 922, rent: 5545, fees: 0, utilities: 175, insurance: 18, parking: 300, parkingConfidence: "Confirmed optional parking fee", moveIn: "2026-09-07", moveInLabel: "Sep 7", postedAt: "2026-08-01T07:00:00.000Z", postedLabel: "Posted Aug 1, 2026", checkedLabel: checkedToday, sourceUrl: URLS.portside, listingUrl: LISTING_URLS.portside717, deposit: 5545, listedPriceLabel: "Compass asking rent", pricingNote: "Compass confirms a $300 monthly parking fee and says the tenant pays electricity. The estimate adds electricity, internet, and renter's insurance; confirm any HOA move-in charge before applying.", utilitiesIncluded: ["Water (verify)", "Garbage (verify)"], amenities: ["Balcony", "In-unit laundry", "Pool & spa"] }),
+  compassCondo({ id: "portside-316n", building: "Portside", address: "403 Main St", unit: "Unit 316N", beds: 1, baths: 1, sqft: 862, rent: 5600, fees: 0, utilities: 175, insurance: 18, parking: 300, parkingConfidence: "Estimated from current Unit 717 fee", moveIn: "2026-07-21", moveInLabel: "Available now", postedAt: "2026-07-21T07:00:00.000Z", postedLabel: "Posted Jul 21, 2026", checkedLabel: checkedToday, sourceUrl: URLS.portside, listingUrl: LISTING_URLS.portside316N, deposit: 5600, listedPriceLabel: "Compass asking rent", pricingNote: "The current rent is reduced from $6,000 to $5,600. Compass says the tenant pays electricity and parking is optional; the $300 parking estimate comes from Unit 717 in the same building.", utilitiesIncluded: ["Water (verify)", "Garbage (verify)"], amenities: ["Den", "Bay view", "Pool & spa"] }),
 ];
 
 export const sourceUnits = researchedUnits;
@@ -326,22 +353,36 @@ const refreshedUnits = [...researchedUnits, ...(refreshState.discoveredUnits || 
   })
   .filter((unit) => unit.active !== false);
 
-// Product rule: studios are never exposed, even if a source adapter discovers one.
-export const units = refreshedUnits.filter((unit) => unit.beds >= 1);
-
 export const snapshotMetadata = {
   dataUpdatedAt: refreshState.dataUpdatedAt || "2026-08-02T18:00:00-07:00",
+  previousDataUpdatedAt: refreshState.previousDataUpdatedAt || null,
   lastRefreshAttemptAt: refreshState.lastRefreshAttemptAt,
   verifiedSourceCount: refreshState.verifiedSourceCount || 0,
-  totalSourceCount: refreshState.totalSourceCount || 13,
+  totalSourceCount: refreshState.totalSourceCount || 14,
 };
+
+const NEW_LISTING_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+export function isNewListing(unit, metadata = snapshotMetadata) {
+  const postedAt = Date.parse(unit.postedAt);
+  const fetchedAt = Date.parse(metadata.dataUpdatedAt);
+  const previousTrackerAt = Date.parse(metadata.previousDataUpdatedAt || metadata.dataUpdatedAt);
+  if (![postedAt, fetchedAt, previousTrackerAt].every(Number.isFinite)) return false;
+  const age = fetchedAt - postedAt;
+  return postedAt > previousTrackerAt || (age >= 0 && age <= NEW_LISTING_WINDOW_MS);
+}
+
+// Product rule: studios are never exposed, even if a source adapter discovers one.
+export const units = refreshedUnits
+  .filter((unit) => unit.beds >= 1)
+  .map((unit) => ({ ...unit, isNew: isNewListing(unit) }));
 
 export const monitoredBuildings = [
   {
     building: "Jasper",
     address: "45 Lansing St",
     status: "Studios only · excluded",
-    detail: "The verified Jasper feed contained only studio homes. They are intentionally excluded from results.",
+    detail: "Jasper's official live map currently contains four studio homes and no larger units. The daily tracker will add a qualifying home when one appears.",
     sourceUrl: URLS.jasper,
     tone: "quiet",
   },
@@ -398,7 +439,7 @@ export function upfrontTotal(unit) {
 }
 
 export function listingLinkLabel(unit) {
-  if (unit.sourceType === "zillow-condo") return "View listing";
+  if (unit.sourceType === "zillow-condo" || unit.sourceType === "compass-condo") return "View listing";
   return unit.listingUrl === unit.sourceUrl ? "View availability" : "View listing";
 }
 

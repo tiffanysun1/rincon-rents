@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { units, sourceUnits, monitoredBuildings, snapshotMetadata, isNewListing, monthlyTotal, sortListings, upfrontTotal, listingLinkLabel } from "./data.js";
+import { units, sourceUnits, monitoredBuildings, snapshotMetadata, isNewListing, monthlyTotal, sortListings, groupListingsByBuilding, upfrontTotal, listingLinkLabel } from "./data.js";
 
 assert.equal(sourceUnits.length, 81, "the researched baseline should retain all 81 source offers");
 assert.equal(units.length, 68, "the public snapshot should contain 68 non-studio offers");
@@ -73,6 +73,13 @@ for (const building of buildingOrder) {
   const totals = byBuilding.filter((unit) => unit.building === building).map((unit) => monthlyTotal(unit, true));
   assert.deepEqual(totals, [...totals].sort((a, b) => a - b), `${building} should be price-sorted within its group`);
 }
+const buildingGroups = groupListingsByBuilding(byBuilding);
+assert.equal(buildingGroups.length, 12, "grouped mode should render one header per apartment complex");
+assert.equal(buildingGroups.reduce((sum, group) => sum + group.units.length, 0), units.length);
+assert.ok(
+  buildingGroups.every((group) => group.units.every((unit) => unit.building === group.building)),
+  "each apartment-complex header should contain only that building's units",
+);
 const syntheticPriceSort = sortListings([
   { building: "Alpha", unit: "1", rent: 4000, fees: 0, utilities: 0, insurance: 0, parking: 0, parkingIncluded: false, isNew: false },
   { building: "Zulu", unit: "2", rent: 5000, fees: 0, utilities: 0, insurance: 0, parking: 0, parkingIncluded: false, isNew: true },

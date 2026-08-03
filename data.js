@@ -450,6 +450,19 @@ export function sortListings(listings, sort = "total-asc", includeParking = true
   });
 }
 
+export function groupListingsByBuilding(listings) {
+  const groups = [];
+  for (const unit of listings) {
+    const current = groups.at(-1);
+    if (!current || current.building !== unit.building) {
+      groups.push({ building: unit.building, units: [unit] });
+    } else {
+      current.units.push(unit);
+    }
+  }
+  return groups;
+}
+
 export function upfrontTotal(unit) {
   return (unit.deposit || 0) + (unit.applicationFee || 0) + (unit.moveInFee || 0);
 }

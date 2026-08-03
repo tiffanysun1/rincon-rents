@@ -1,4 +1,4 @@
-import { units, snapshotMetadata, monthlyTotal, formatMoney, listingLinkLabel } from "./data.js";
+import { units, snapshotMetadata, monthlyTotal, sortListings, formatMoney, listingLinkLabel } from "./data.js";
 
 const state = {
   includeParking: true,
@@ -31,13 +31,7 @@ function displayedParking(unit) {
 }
 
 function sortedUnits() {
-  return [...units].sort((a, b) => {
-    if (Boolean(a.isNew) !== Boolean(b.isNew)) return a.isNew ? -1 : 1;
-    if (state.sort === "rent-asc") return a.rent - b.rent;
-    if (state.sort === "rent-desc") return b.rent - a.rent;
-    if (state.sort === "total-desc") return monthlyTotal(b, state.includeParking) - monthlyTotal(a, state.includeParking);
-    return monthlyTotal(a, state.includeParking) - monthlyTotal(b, state.includeParking);
-  });
+  return sortListings(units, state.sort, state.includeParking);
 }
 
 function render() {

@@ -434,6 +434,22 @@ export function monthlyTotal(unit, includeParking = true) {
   return unit.rent + unit.fees + unit.utilities + unit.insurance + parking;
 }
 
+export function sortListings(listings, sort = "total-asc", includeParking = true) {
+  return [...listings].sort((a, b) => {
+    if (sort === "building-asc") {
+      const buildingOrder = a.building.localeCompare(b.building, "en", { numeric: true, sensitivity: "base" });
+      if (buildingOrder) return buildingOrder;
+      return monthlyTotal(a, includeParking) - monthlyTotal(b, includeParking)
+        || a.unit.localeCompare(b.unit, "en", { numeric: true, sensitivity: "base" });
+    }
+    if (Boolean(a.isNew) !== Boolean(b.isNew)) return a.isNew ? -1 : 1;
+    if (sort === "rent-asc") return a.rent - b.rent;
+    if (sort === "rent-desc") return b.rent - a.rent;
+    if (sort === "total-desc") return monthlyTotal(b, includeParking) - monthlyTotal(a, includeParking);
+    return monthlyTotal(a, includeParking) - monthlyTotal(b, includeParking);
+  });
+}
+
 export function upfrontTotal(unit) {
   return (unit.deposit || 0) + (unit.applicationFee || 0) + (unit.moveInFee || 0);
 }

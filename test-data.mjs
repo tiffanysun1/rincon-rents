@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { units, sourceUnits, monitoredBuildings, snapshotMetadata, isNewListing, monthlyTotal, upfrontTotal, listingLinkLabel } from "./data.js";
+import { units, sourceUnits, monitoredBuildings, snapshotMetadata, isNewListing, monthlyTotal, sortListings, upfrontTotal, listingLinkLabel } from "./data.js";
 
 assert.equal(sourceUnits.length, 81, "the researched baseline should retain all 81 source offers");
 assert.equal(units.length, 68, "the public snapshot should contain 68 non-studio offers");
@@ -61,6 +61,23 @@ assert.equal(listingLinkLabel(portside), "View listing");
 
 assert.equal(units.filter((unit) => unit.building === "Jasper").length, 0, "Jasper studios must remain hidden");
 assert.equal(monitoredBuildings.find((item) => item.building === "Jasper").sourceUrl, "https://www.rentjasper.com/community-map/");
+
+const byBuilding = sortListings(units, "building-asc", true);
+const buildingOrder = [...new Set(byBuilding.map((unit) => unit.building))];
+assert.deepEqual(
+  buildingOrder,
+  [...buildingOrder].sort((a, b) => a.localeCompare(b, "en", { numeric: true, sensitivity: "base" })),
+  "apartment-complex sorting should group buildings alphabetically",
+);
+for (const building of buildingOrder) {
+  const totals = byBuilding.filter((unit) => unit.building === building).map((unit) => monthlyTotal(unit, true));
+  assert.deepEqual(totals, [...totals].sort((a, b) => a - b), `${building} should be price-sorted within its group`);
+}
+const syntheticPriceSort = sortListings([
+  { building: "Alpha", unit: "1", rent: 4000, fees: 0, utilities: 0, insurance: 0, parking: 0, parkingIncluded: false, isNew: false },
+  { building: "Zulu", unit: "2", rent: 5000, fees: 0, utilities: 0, insurance: 0, parking: 0, parkingIncluded: false, isNew: true },
+], "total-asc", true);
+assert.equal(syntheticPriceSort[0].building, "Zulu", "price views should continue pinning New listings first");
 
 const fremont = units.find((unit) => unit.id === "340-1a-f7");
 assert.equal(monthlyTotal(fremont, true), 6265, "340 Fremont should add modeled recurring costs and parking once");

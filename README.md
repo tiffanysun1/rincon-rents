@@ -37,7 +37,7 @@ After the Pages URL is live, install the optional Mac schedule with:
 ./scripts/install-imessage-schedule.sh +14155551212 https://username.github.io/rincon-rents/
 ```
 
-It sends the site link through the signed-in macOS Messages app every day at 7:15 AM, after the 6:17 AM refresh. The phone number is written only to the local LaunchAgent, not the repository. macOS will ask for permission the first time the script controls Messages. Use `./scripts/uninstall-imessage-schedule.sh` to remove it.
+It sends the site link through the signed-in macOS Messages app every day at 8:30 AM, after the 6:17 AM refresh. The phone number is written only to the local LaunchAgent, not the repository. macOS will ask for permission the first time the script controls Messages. Use `./scripts/uninstall-imessage-schedule.sh` to remove it.
 
 ## Data caveat
 

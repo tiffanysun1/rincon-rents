@@ -46,9 +46,9 @@ cat > "$plist_path" <<PLIST
   <key>StartCalendarInterval</key>
   <dict>
     <key>Hour</key>
-    <integer>7</integer>
+    <integer>8</integer>
     <key>Minute</key>
-    <integer>15</integer>
+    <integer>30</integer>
   </dict>
   <key>StandardOutPath</key>
   <string>${support_dir}/message.log</string>
@@ -63,5 +63,5 @@ plutil -lint "$plist_path"
 launchctl bootout "gui/$(id -u)" "$plist_path" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$plist_path"
 
-echo "Daily iMessage scheduled for 7:15 AM local time."
+echo "Daily iMessage scheduled for 8:30 AM local time."
 echo "Run this once to test: /usr/bin/osascript '$installed_script' '$recipient' '$site_url'"

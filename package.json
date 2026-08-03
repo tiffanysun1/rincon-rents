@@ -1,0 +1,19 @@
+{
+  "name": "rincon-rent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "python3 -m http.server 4173 --bind 127.0.0.1",
+    "build": "node scripts/build.mjs",
+    "refresh": "node scripts/refresh-listings.mjs",
+    "refresh:dry": "node scripts/refresh-listings.mjs --dry-run",
+    "test": "node test-data.mjs && node test-refresh.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

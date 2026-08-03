@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Price-ranked Rincon Hill apartment listings with estimated total monthly cost." />
+    <title>Rincon Hill apartment prices</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <div>
+          <h1>Rincon Hill apartment prices</h1>
+          <p>Last fetched <time id="fetchedAt">Aug 2, 2026 at 6:00 PM PDT</time></p>
+        </div>
+        <label class="parking-toggle">
+          <input id="parkingToggle" type="checkbox" checked />
+          Include parking
+        </label>
+      </header>
+
+      <section class="list-toolbar" aria-label="Listing controls">
+        <strong id="resultCount">63 homes</strong>
+        <span>Studios excluded</span>
+        <label>
+          <span class="sr-only">Sort prices</span>
+          <select id="sortSelect">
+            <option value="total-asc">Lowest total</option>
+            <option value="total-desc">Highest total</option>
+            <option value="rent-asc">Lowest rent</option>
+            <option value="rent-desc">Highest rent</option>
+          </select>
+        </label>
+      </section>
+
+      <div class="price-table" role="table" aria-label="Available apartments ranked by price">
+        <div class="price-head" role="row">
+          <span>Home</span>
+          <span>Dates</span>
+          <span>Rent</span>
+          <span>Fees + utilities</span>
+          <span>Parking</span>
+          <span>Estimated total</span>
+          <span>Source</span>
+        </div>
+        <div id="priceRows"></div>
+      </div>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -12,6 +12,22 @@ const URLS = {
   beale388: "https://www.udr.com/san-francisco-bay-area-apartments/san-francisco/388-beale/apartments-pricing/",
   beale388Fees: "https://www.udr.com/generatepdf/apartmentexpenses?pid=37412",
   fremont399: "https://www.udr.com/san-francisco-bay-area-apartments/san-francisco/399-fremont/apartments-pricing/",
+  fremont399Fees: "https://www.udr.com/generatepdf/apartmentexpenses?pid=51589",
+  hotpadsRincon: "https://hotpads.com/rincon-hill-san-francisco-ca/apartments-for-rent",
+  avery450: "https://hotpads.com/avery-450-san-francisco-ca-94105-2476y1v/pad",
+  harrisonCompass: "https://www.compass.com/building/the-harrison-san-francisco-ca/302764349676184005/",
+  oneRinconCompass: "https://www.compass.com/building/one-rincon-hill-san-francisco-ca/776223940080373789/",
+  averyCompass: "https://www.compass.com/building/the-avery-san-francisco-ca/776315909062009133/",
+  luminaCompass: "https://www.compass.com/building/lumina-san-francisco-ca/777008840924440301/",
+  infinityCompass: "https://www.compass.com/building/the-infinity-san-francisco-ca/777004704384461173/",
+  metropolitanCompass: "https://www.compass.com/building/metropolitan-san-francisco-ca/776530764113136965/",
+  miraCompass: "https://www.compass.com/building/mira-san-francisco-ca/791035602298308837/",
+  millenniumCompass: "https://www.compass.com/building/millennium-san-francisco-ca/776857461421607901/",
+  harrison11a: "https://www.zillow.com/homedetails/401-Harrison-St-APT-11A-San-Francisco-CA-94105/249698370_zpid/",
+  fremont18158d: "https://www.zillow.com/homedetails/181-Fremont-St-UNIT-58D-San-Francisco-CA-94105/249665315_zpid/",
+  bridgeview1412: "https://www.zillow.com/homedetails/400-Beale-St-APT-1412-San-Francisco-CA-94105/80751505_zpid/",
+  infinity8hl: "https://www.zillow.com/homedetails/318-Spear-St-8H-L-San-Francisco-CA-94105/463798029_zpid/",
+  metropolitanN1607: "https://hotpads.com/333-1st-st-san-francisco-ca-94105-241aes2/n1607/pad",
   bridgeview1501: "https://www.zillow.com/homedetails/400-Beale-St-APT-1501-San-Francisco-CA-94105/80734962_zpid/",
   infinity6b: "https://www.zillow.com/homedetails/318-Spear-St-UNIT-6B-San-Francisco-CA-94105/89236508_zpid/",
   metropolitan2405: "https://www.zillow.com/homedetails/355-1st-St-UNIT-S2405-San-Francisco-CA-94105/64971613_zpid/",
@@ -117,6 +133,28 @@ function compassCondo(overrides) {
   return condo({
     sourceType: "compass-condo",
     sourceLabel: "Compass rental listing",
+    ...overrides,
+  });
+}
+
+function trackerCondo(overrides) {
+  return compassCondo({
+    id: "tracker-template",
+    unit: "Unit template",
+    beds: 1,
+    baths: 1,
+    sqft: 0,
+    rent: 1,
+    utilities: 175,
+    insurance: 18,
+    parking: 450,
+    parkingConfidence: "Estimated — confirm with owner",
+    moveIn: null,
+    moveInLabel: "Confirm date",
+    deposit: 1,
+    listedPriceLabel: "Compass asking rent",
+    pricingNote: "Rent and availability are refreshed from the live condo listing. Utilities, insurance, parking, and any HOA move-in charge are estimated when they are not itemized.",
+    amenities: ["In-unit laundry", "Concierge"],
     ...overrides,
   });
 }
@@ -342,16 +380,81 @@ const researchedUnits = [
   condo({ id: "lumina-27d", building: "LUMINA", address: "201 Folsom St", unit: "Unit 27D", beds: 1, baths: 1, sqft: 876, rent: 6895, utilities: 200, parking: 300, parkingConfidence: "Confirmed optional valet parking", moveIn: "2026-09-01", moveInLabel: "Sep 1", postedAt: "2026-07-24T07:00:00.000Z", postedLabel: "Posted Jul 24, 2026", sourceUrl: URLS.lumina27d, deposit: 6895, listedPriceLabel: "Zillow asking rent", pricingNote: "Compass confirms the $300 parking fee and that the tenant pays electricity and gas. The estimate also includes internet and renter's insurance; confirm all building charges before applying.", amenities: ["Valet parking", "Lap pool", "Bridge views"] }),
   compassCondo({ id: "portside-717", building: "Portside", address: "403 Main St", unit: "Unit 717", beds: 1, baths: 1, sqft: 922, rent: 5545, fees: 0, utilities: 175, insurance: 18, parking: 300, parkingConfidence: "Confirmed optional parking fee", moveIn: "2026-09-07", moveInLabel: "Sep 7", postedAt: "2026-08-01T07:00:00.000Z", postedLabel: "Posted Aug 1, 2026", checkedLabel: checkedToday, sourceUrl: URLS.portside, listingUrl: LISTING_URLS.portside717, deposit: 5545, listedPriceLabel: "Compass asking rent", pricingNote: "Compass confirms a $300 monthly parking fee and says the tenant pays electricity. The estimate adds electricity, internet, and renter's insurance; confirm any HOA move-in charge before applying.", utilitiesIncluded: ["Water (verify)", "Garbage (verify)"], amenities: ["Balcony", "In-unit laundry", "Pool & spa"] }),
   compassCondo({ id: "portside-316n", building: "Portside", address: "403 Main St", unit: "Unit 316N", beds: 1, baths: 1, sqft: 862, rent: 5600, fees: 0, utilities: 175, insurance: 18, parking: 300, parkingConfidence: "Estimated from current Unit 717 fee", moveIn: "2026-07-21", moveInLabel: "Available now", postedAt: "2026-07-21T07:00:00.000Z", postedLabel: "Posted Jul 21, 2026", checkedLabel: checkedToday, sourceUrl: URLS.portside, listingUrl: LISTING_URLS.portside316N, deposit: 5600, listedPriceLabel: "Compass asking rent", pricingNote: "The current rent is reduced from $6,000 to $5,600. Compass says the tenant pays electricity and parking is optional; the $300 parking estimate comes from Unit 717 in the same building.", utilitiesIncluded: ["Water (verify)", "Garbage (verify)"], amenities: ["Den", "Bay view", "Pool & spa"] }),
+
+  // Zillow listings that are live but do not currently appear in the building-level feeds.
+  condo({ id: "harrison-11a", building: "The Harrison", address: "401 Harrison St", unit: "Unit 11A", beds: 1, baths: 1, sqft: 840, rent: 6300, utilities: 175, parking: 0, parkingIncluded: true, parkingConfidence: "1 valet space included", moveIn: "2026-08-03", moveInLabel: "Available now", postedAt: "2026-07-14T07:00:00.000Z", postedLabel: "Posted Jul 14, 2026", sourceUrl: URLS.harrison11a, listingUrl: URLS.harrison11a, deposit: 6300, listedPriceLabel: "Zillow asking rent", pricingNote: "Zillow confirms one valet space. Utilities and renter's insurance are estimated; confirm any HOA move-in charge before applying.", amenities: ["Valet parking included", "Den", "Pool & fitness center"] }),
+  condo({ id: "181-fremont-58d", building: "181 Fremont Residences", address: "181 Fremont St", unit: "Unit 58D", beds: 2, baths: 2.5, sqft: 1775, rent: 18990, utilities: 225, parking: 450, parkingConfidence: "1 space shown; inclusion not stated", moveIn: "2026-08-03", moveInLabel: "Available now", postedAt: "2026-07-14T07:00:00.000Z", postedLabel: "Posted Jul 14, 2026", sourceUrl: URLS.fremont18158d, listingUrl: URLS.fremont18158d, deposit: 18990, listedPriceLabel: "Zillow asking rent", pricingNote: "The listing shows one parking space but does not say whether it is included, so the total uses a $450 estimate. Utilities, insurance, and any building move-in charge should be confirmed.", amenities: ["Direct Salesforce Park access", "In-unit laundry", "Fitness center"] }),
+  condo({ id: "bridgeview-1412", building: "Bridgeview", address: "400 Beale St", unit: "Unit 1412", beds: 2, baths: 2, sqft: 1075, rent: 6800, utilities: 135, parking: 450, parkingConfidence: "Attached garage shown; price not stated", moveIn: "2026-08-01", moveInLabel: "Available now", postedAt: "2026-07-07T07:00:00.000Z", postedLabel: "Posted Jul 7, 2026", sourceUrl: URLS.bridgeview1412, listingUrl: URLS.bridgeview1412, deposit: 6800, listedPriceLabel: "Zillow asking rent", pricingNote: "The HOA covers water, garbage, and gas. Electricity, internet, insurance, and parking are estimated because the listing does not itemize them.", utilitiesIncluded: ["Water", "Garbage", "Gas"], amenities: ["Attached garage", "Pool & spa", "Concierge"] }),
+  condo({ id: "infinity-8hl", building: "The Infinity", address: "318 Spear St", unit: "Unit 8H-L", beds: 2, baths: 2, sqft: 1256, rent: 8000, utilities: 175, parking: 450, parkingConfidence: "1 attached space shown; price not stated", moveIn: "2026-08-03", moveInLabel: "Available now", postedAt: "2026-07-11T07:00:00.000Z", postedLabel: "Posted Jul 11, 2026", sourceUrl: URLS.infinity8hl, listingUrl: URLS.infinity8hl, deposit: 8000, listedPriceLabel: "Zillow asking rent", pricingNote: "Zillow shows one attached space but does not state whether it is included. Utilities, insurance, parking, and any Infinity move-in fee should be confirmed.", amenities: ["Attached garage", "Lap pool", "24-hour concierge"] }),
+  condo({ id: "metropolitan-n1607", building: "The Metropolitan", address: "333 1st St", unit: "Unit N1607", beds: 2, baths: 2, sqft: 950, rent: 6950, utilities: 135, parking: 0, parkingIncluded: true, parkingConfidence: "1 deeded space included", moveIn: null, moveInLabel: "Confirm date", postedAt: "2026-06-23T07:00:00.000Z", postedLabel: "Posted Jun 23, 2026", sourceUrl: URLS.metropolitanN1607, listingUrl: URLS.metropolitanN1607, sourceLabel: "Zillow/HotPads condo listing", deposit: 6950, listedPriceLabel: "Zillow/HotPads asking rent", pricingNote: "The listing includes one parking space, storage, water, sewer, and trash. The estimate covers electricity, internet, and renter's insurance.", utilitiesIncluded: ["Water", "Sewer", "Garbage"], amenities: ["Parking included", "Storage included", "Pool & fitness center"] }),
 ];
 
 export const sourceUnits = researchedUnits;
 
-const refreshedUnits = [...researchedUnits, ...(refreshState.discoveredUnits || [])]
+export const trackerSources = [
+  { sourceUrl: URLS.hotpadsRincon, kind: "hotpads-neighborhood" },
+  { sourceUrl: URLS.avery450, kind: "hotpads-property" },
+  {
+    sourceUrl: URLS.fremont399,
+    kind: "udr-property",
+    template: managed({
+      id: "tracker-399-fremont",
+      building: "399 Fremont",
+      address: "399 Fremont St",
+      unit: "Unit template",
+      beds: 1,
+      baths: 1,
+      sqft: 0,
+      rent: 1,
+      fees: 63,
+      utilities: 308,
+      insurance: 14,
+      parking: 515,
+      parkingConfidence: "Confirmed reserved-garage price",
+      moveIn: null,
+      moveInLabel: "Confirm date",
+      sourceUrl: URLS.fremont399,
+      listingUrl: URLS.fremont399,
+      costSourceUrl: URLS.fremont399Fees,
+      deposit: 725,
+      applicationFee: 63.9,
+      listedPriceLabel: "Base rent",
+      pricingNote: "UDR publishes $48 trash, $15 package lockers, $515 reserved parking, and $14 liability coverage. The utility estimate includes usage-based services and internet.",
+      amenities: ["In-unit laundry", "24-hour concierge", "Garage parking"],
+    }),
+  },
+  { sourceUrl: URLS.harrisonCompass, kind: "compass", excludeUnits: ["17B"], template: trackerCondo({ building: "The Harrison", address: "401 Harrison St", sourceUrl: URLS.harrisonCompass }) },
+  { sourceUrl: URLS.oneRinconCompass, kind: "compass", template: trackerCondo({ building: "One Rincon Hill", address: "425 1st St", sourceUrl: URLS.oneRinconCompass }) },
+  { sourceUrl: URLS.averyCompass, kind: "compass", template: trackerCondo({ building: "The Avery", address: "488 Folsom St", sourceUrl: URLS.averyCompass }) },
+  { sourceUrl: URLS.luminaCompass, kind: "compass", template: trackerCondo({ building: "LUMINA", address: "338 Main St", sourceUrl: URLS.luminaCompass, parking: 300, parkingConfidence: "Typical current valet price — confirm" }) },
+  { sourceUrl: URLS.infinityCompass, kind: "compass", template: trackerCondo({ building: "The Infinity", address: "301 Main St", sourceUrl: URLS.infinityCompass }) },
+  { sourceUrl: URLS.metropolitanCompass, kind: "compass", template: trackerCondo({ building: "The Metropolitan", address: "355 1st St", sourceUrl: URLS.metropolitanCompass }) },
+  { sourceUrl: URLS.miraCompass, kind: "compass", template: trackerCondo({ building: "MIRA", address: "280 Spear St", sourceUrl: URLS.miraCompass }) },
+  { sourceUrl: URLS.millenniumCompass, kind: "compass", template: trackerCondo({ building: "Millennium Tower", address: "301 Mission St", sourceUrl: URLS.millenniumCompass }) },
+];
+
+const refreshedUnitsWithDuplicates = [...researchedUnits, ...(refreshState.discoveredUnits || [])]
   .map((unit) => {
     const refreshed = { ...unit, ...(refreshState.unitOverrides?.[unit.id] || {}) };
     return { ...refreshed, listingUrl: refreshed.listingUrl || refreshed.sourceUrl };
   })
   .filter((unit) => unit.active !== false);
+
+function listingIdentity(unit) {
+  const exact = String(unit.unit).match(/\b(?:Unit|Plan)\s+(?:STE\s+)?([A-Z0-9-]+)/i)?.[1];
+  return `${String(unit.address).toLowerCase().replace(/[^a-z0-9]+/g, "-")}|${String(exact || unit.unit).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+}
+
+// Building feeds overlap with Zillow/HotPads and Compass. Keep the first, deepest
+// listing we researched instead of showing the same home more than once.
+const refreshedUnits = [];
+const listingIdentities = new Set();
+for (const unit of refreshedUnitsWithDuplicates) {
+  const identity = listingIdentity(unit);
+  if (listingIdentities.has(identity)) continue;
+  listingIdentities.add(identity);
+  refreshedUnits.push(unit);
+}
 
 export const snapshotMetadata = {
   dataUpdatedAt: refreshState.dataUpdatedAt || "2026-08-02T18:00:00-07:00",
@@ -384,38 +487,6 @@ export const monitoredBuildings = [
     status: "Studios only · excluded",
     detail: "Jasper's official live map currently contains four studio homes and no larger units. The daily tracker will add a qualifying home when one appears.",
     sourceUrl: URLS.jasper,
-    tone: "quiet",
-  },
-  {
-    building: "399 Fremont",
-    address: "399 Fremont St",
-    status: "No verified availability",
-    detail: "Official page updated Aug 2 at 5:38 PM and reports 0 apartments. Earlier cached results were excluded.",
-    sourceUrl: URLS.fremont399,
-    tone: "quiet",
-  },
-  {
-    building: "One Rincon Hill",
-    address: "425 1st St",
-    status: "Stale card excluded",
-    detail: "A Zillow neighborhood card showed Unit 4504, but the unit detail page says off market. It is not counted.",
-    sourceUrl: "https://www.zillow.com/rincon-hill-san-francisco-ca/condos-for-rent/",
-    tone: "warning",
-  },
-  {
-    building: "The Harrison",
-    address: "401 Harrison St",
-    status: "Detail verification pending",
-    detail: "Neighborhood results showed prices at this address; individual listing status and included costs could not be reliably reconciled.",
-    sourceUrl: "https://www.zillow.com/rincon-hill-san-francisco-ca/condos-for-rent/",
-    tone: "quiet",
-  },
-  {
-    building: "Avery 450",
-    address: "450 Folsom St",
-    status: "No public unit feed found",
-    detail: "The building is in coverage, but no current unit-level availability with public prices was exposed during this check.",
-    sourceUrl: "https://www.rinconhill-apartments.com/",
     tone: "quiet",
   },
 ];

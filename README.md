@@ -24,12 +24,12 @@ The included GitHub Actions workflow is the hosting and daily-update path:
 
 1. Put this directory in a GitHub repository with `main` as its default branch.
 2. In **Settings → Pages**, choose **GitHub Actions** as the publishing source.
-3. The site deploys on every push. At 6:17 AM Pacific each day, a browser-based refresh checks exact units, updates confirmed prices and dates, runs the validation suite, and deploys to GitHub Pages.
+3. The site deploys on every push. At 4:43 AM Pacific each day, a browser-based refresh checks exact units, updates confirmed prices and dates, runs the validation suite, and deploys to GitHub Pages.
 4. **Actions → Refresh listings and deploy → Run workflow** triggers the same process on demand.
 
 The updater is intentionally conservative. Exact unit-and-price matches are required. Solaire and Jasper are read from their official structured unit feeds, and the active 403 Main rental inventory is read from Compass while each result links to its individual listing. A blocked or changed source keeps its last known good listing and freshness label; if no source can be verified, the workflow fails without changing the displayed update timestamp. The checked-in `refresh-state.js` records the last successful data update and per-source status.
 
-## Daily iMessage
+## Daily phone notification
 
 After the Pages URL is live, install the optional Mac schedule with:
 
@@ -37,7 +37,7 @@ After the Pages URL is live, install the optional Mac schedule with:
 ./scripts/install-imessage-schedule.sh +14155551212 https://username.github.io/rincon-rents/
 ```
 
-It sends the site link through the signed-in macOS Messages app every day at 8:30 AM, after the 6:17 AM refresh. The phone number is written only to the local LaunchAgent, not the repository. macOS will ask for permission the first time the script controls Messages. Use `./scripts/uninstall-imessage-schedule.sh` to remove it.
+It sends the site link through the signed-in macOS Messages app every day at 8:30 AM, after the 4:43 AM refresh. A failed or sleeping-Mac attempt is retried, with backup launch windows at 8:40 and 9:00; a local date stamp prevents duplicates after a successful send. The phone number is written only to the local LaunchAgent, not the repository. macOS will ask for permission the first time the script controls Messages. Use `./scripts/uninstall-imessage-schedule.sh` to remove it.
 
 ## Data caveat
 

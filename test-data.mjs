@@ -1,15 +1,19 @@
 import assert from "node:assert/strict";
-import { units, sourceUnits, monitoredBuildings, snapshotMetadata, isNewListing, monthlyTotal, sortListings, groupListingsByBuilding, upfrontTotal, listingLinkLabel } from "./data.js";
+import { units, sourceUnits, trackerSources, monitoredBuildings, snapshotMetadata, isNewListing, monthlyTotal, sortListings, groupListingsByBuilding, upfrontTotal, listingLinkLabel } from "./data.js";
 
-assert.equal(sourceUnits.length, 81, "the researched baseline should retain all 81 source offers");
-assert.equal(units.length, 68, "the public snapshot should contain 68 non-studio offers");
+assert.equal(sourceUnits.length, 86, "the researched baseline should retain all 86 source offers");
+assert.ok(units.length >= 80, "the public snapshot should retain broad non-studio coverage even as live availability changes");
 assert.equal(new Set(units.map((unit) => unit.id)).size, units.length, "unit ids must be unique");
-assert.equal(new Set(units.map((unit) => unit.building)).size, 12, "active non-studio units should cover twelve buildings");
-assert.equal(monitoredBuildings.length, 5, "five additional buildings should remain visible in coverage");
+assert.ok(new Set(units.map((unit) => unit.building)).size >= 15, "active non-studio units should cover the broader Rincon Hill area");
+assert.equal(monitoredBuildings.length, 1, "Jasper should remain monitored while its live inventory is studios-only");
+assert.equal(trackerSources.length, 11, "the daily refresh should include neighborhood, Avery, 399 Fremont, and eight condo-building feeds");
 assert.ok(units.every((unit) => unit.beds >= 1), "studios must never reach the public inventory");
-assert.equal(units.filter((unit) => unit.building === "500 Folsom").length, 15);
-assert.equal(units.filter((unit) => unit.building === "Spera").length, 13);
-assert.equal(units.filter((unit) => unit.building === "388 Beale").length, 12);
+assert.ok(units.some((unit) => unit.building === "399 Fremont"), "399 Fremont's official inventory should be present");
+assert.ok(units.some((unit) => unit.building === "Avery 450"), "Avery 450's unit feed should be present");
+assert.ok(units.some((unit) => unit.building === "The Avery"), "The Avery condo listings should be present");
+assert.ok(units.some((unit) => unit.building === "The Harrison"), "The Harrison condo listings should be present");
+assert.ok(units.some((unit) => unit.building === "MIRA"), "MIRA condo listings should be present");
+assert.ok(units.some((unit) => unit.building === "Millennium Tower"), "Salesforce Park-adjacent listings should be present");
 assert.ok(!Number.isNaN(new Date(snapshotMetadata.dataUpdatedAt).valueOf()), "the displayed update timestamp must be valid");
 
 for (const unit of units) {
@@ -74,7 +78,7 @@ for (const building of buildingOrder) {
   assert.deepEqual(totals, [...totals].sort((a, b) => a - b), `${building} should be price-sorted within its group`);
 }
 const buildingGroups = groupListingsByBuilding(byBuilding);
-assert.equal(buildingGroups.length, 12, "grouped mode should render one header per apartment complex");
+assert.equal(buildingGroups.length, new Set(units.map((unit) => unit.building)).size, "grouped mode should render one header per apartment complex");
 assert.equal(buildingGroups.reduce((sum, group) => sum + group.units.length, 0), units.length);
 assert.ok(
   buildingGroups.every((group) => group.units.every((unit) => unit.building === group.building)),
@@ -105,6 +109,6 @@ for (const unit of units.filter((item) => item.building === "Modera Rincon Hill"
 assert.ok(units.filter((unit) => unit.building === "340 Fremont").every((unit) => unit.listingUrl.includes("/UnitFees/")));
 assert.ok(units.filter((unit) => unit.building === "500 Folsom").every((unit) => unit.listingUrl === unit.sourceUrl));
 assert.ok(units.filter((unit) => unit.building === "Spera").every((unit) => unit.listingUrl.includes("UnitID=")));
-assert.ok(units.filter((unit) => unit.building === "388 Beale").every((unit) => unit.listingUrl.includes("/leaseoll/floorplan/")));
+assert.ok(units.filter((unit) => unit.building === "388 Beale").every((unit) => unit.listingUrl.includes("/apartments-pricing/apartment/")));
 
 console.log(`Validated ${units.length} units across ${new Set(units.map((unit) => unit.building)).size} active buildings.`);

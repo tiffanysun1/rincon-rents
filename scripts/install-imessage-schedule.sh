@@ -24,10 +24,13 @@ label="com.rincon-rent.daily-link"
 plist_path="${launch_agents_dir}/${label}.plist"
 script_dir="${0:A:h}"
 installed_script="${support_dir}/send-imessage.applescript"
+installed_wrapper="${support_dir}/send-notification.sh"
 
 mkdir -p "$support_dir" "$launch_agents_dir"
 cp "${script_dir}/send-imessage.applescript" "$installed_script"
+cp "${script_dir}/send-notification.sh" "$installed_wrapper"
 chmod 600 "$installed_script"
+chmod 700 "$installed_wrapper"
 
 cat > "$plist_path" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -38,18 +41,38 @@ cat > "$plist_path" <<PLIST
   <string>${label}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/bin/osascript</string>
+    <string>/bin/zsh</string>
+    <string>${installed_wrapper}</string>
     <string>${installed_script}</string>
     <string>${recipient}</string>
     <string>${site_url}</string>
+    <string>${support_dir}</string>
   </array>
   <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key>
-    <integer>8</integer>
-    <key>Minute</key>
-    <integer>30</integer>
-  </dict>
+  <array>
+    <dict>
+      <key>Hour</key>
+      <integer>8</integer>
+      <key>Minute</key>
+      <integer>30</integer>
+    </dict>
+    <dict>
+      <key>Hour</key>
+      <integer>8</integer>
+      <key>Minute</key>
+      <integer>40</integer>
+    </dict>
+    <dict>
+      <key>Hour</key>
+      <integer>9</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+  </array>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
   <key>StandardOutPath</key>
   <string>${support_dir}/message.log</string>
   <key>StandardErrorPath</key>
@@ -63,5 +86,5 @@ plutil -lint "$plist_path"
 launchctl bootout "gui/$(id -u)" "$plist_path" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$plist_path"
 
-echo "Daily iMessage scheduled for 8:30 AM local time."
-echo "Run this once to test: /usr/bin/osascript '$installed_script' '$recipient' '$site_url'"
+echo "Daily Messages notification scheduled for 8:30 AM local time, with same-day retry windows."
+echo "Run this once to test: /bin/zsh '$installed_wrapper' '$installed_script' '$recipient' '$site_url' '$support_dir'"

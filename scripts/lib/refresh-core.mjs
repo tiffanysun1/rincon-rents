@@ -277,6 +277,214 @@ export function parseCompassBuildingAvailability(html, baseUrl) {
     .filter((unit) => unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
 }
 
+function hotPadsState(html) {
+  const json = balancedJsonAfter(String(html), "window.__PRELOADED_STATE__ =");
+  if (!json) return null;
+  try {
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+const MANAGED_HOTPADS_BUILDINGS = new Set([
+  "333 fremont",
+  "340 fremont",
+  "388 beale",
+  "399 fremont",
+  "jasper",
+  "modera rincon hill",
+]);
+
+export function parseHotPadsNeighborhoodSources(html, baseUrl = "https://hotpads.com/") {
+  const state = hotPadsState(html);
+  const groups = state?.listings?.listingGroups?.byCoords;
+  if (!Array.isArray(groups)) return null;
+  return groups
+    .filter((listing) => listing?.active && listing.uriV2)
+    .filter((listing) => !MANAGED_HOTPADS_BUILDINGS.has(String(listing.displayName || "").toLowerCase()))
+    .map((listing) => new URL(listing.uriV2, baseUrl).href);
+}
+
+function hotPadsBuildingName(address) {
+  const key = String(address || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const names = new Map([
+    ["181 fremont st", "181 Fremont Residences"],
+    ["201 folsom st", "LUMINA"],
+    ["333 beale st", "LUMINA"],
+    ["338 main st", "LUMINA"],
+    ["301 main st", "The Infinity"],
+    ["318 spear st", "The Infinity"],
+    ["338 spear st", "The Infinity"],
+    ["333 1st st", "The Metropolitan"],
+    ["355 1st st", "The Metropolitan"],
+    ["400 beale st", "Bridgeview"],
+    ["403 main st", "Portside"],
+    ["401 harrison st", "The Harrison"],
+    ["425 1st st", "One Rincon Hill"],
+    ["489 harrison st", "One Rincon Hill"],
+    ["450 folsom st", "Avery 450"],
+    ["488 folsom st", "The Avery"],
+    ["280 spear st", "MIRA"],
+    ["301 mission st", "Millennium Tower"],
+    ["201 harrison st", "Baycrest"],
+    ["50 lansing st", "50 Lansing"],
+  ]);
+  return names.get(key) || String(address || "Unknown building").replace(/\s+(?:St|Street)$/i, "");
+}
+
+function hotPadsPostedAt(listing, checkedAt) {
+  if (Number.isFinite(listing.created)) return new Date(listing.created).toISOString();
+  const age = String(listing.createdAgo || "").toLowerCase();
+  const days = Number(age.match(/(\d+)\s+days?/)?.[1]);
+  if (Number.isFinite(days)) return new Date(checkedAt.valueOf() - days * 86_400_000).toISOString();
+  if (/today|hours?|minutes?/.test(age)) return checkedAt.toISOString();
+  return null;
+}
+
+function hotPadsMoveIn(value) {
+  if (!value) return null;
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  return toIsoDate(text);
+}
+
+function hotPadsUnit(listing, baseUrl, checkedAt) {
+  const range = listing.listingMinMaxPriceBeds || {};
+  const description = String(listing.details?.fullDescription || "");
+  const listingUrl = listing.uriV2 ? new URL(listing.uriV2, baseUrl).href : baseUrl;
+  if (/pad-for-sublet/i.test(listingUrl) || /\b(?:room for rent|private (?:furnished )?bedroom|shared access)\b/i.test(description)) return null;
+
+  const displayUnit = String(listing.displayName || "").match(/#\s*([^,]+)/)?.[1]?.trim();
+  const pathParts = new URL(listingUrl).pathname.split("/").filter(Boolean);
+  const pathUnit = pathParts.at(-1) === "pad" && pathParts.length >= 3 ? pathParts.at(-2) : null;
+  const sourceUnitId = displayUnit || (pathUnit ? pathUnit.toUpperCase() : "Home");
+  const address = String(listing.address?.street || "").trim();
+  const beds = Number(range.minBeds ?? listing.beds);
+  const baths = Number(range.minBaths ?? listing.baths);
+  const sqft = Number(range.minSqft ?? listing.sqft ?? 0);
+  const rent = Number(range.minPrice ?? listing.rent);
+  if (!address || !sourceUnitId || !Number.isFinite(beds) || beds < 1 || !Number.isFinite(rent) || rent <= 0) return null;
+
+  const amenities = listing.amenities?.amenities || [];
+  const amenitiesText = amenities.join(" ");
+  const deposit = Number(amenitiesText.match(/Deposit Fee Minimum:\s*([\d.]+)/i)?.[1]
+    || description.match(/security deposit(?:\s+is|:)?\s*\$?([\d,]+)/i)?.[1]?.replaceAll(",", ""));
+  const applicationFee = Number(description.match(/application fee(?:\s+is|:)?\s*\$?([\d,]+)/i)?.[1]?.replaceAll(",", ""));
+  const utilitiesIncluded = [
+    /water included|owner pays (?:for )?water/i.test(`${amenitiesText} ${description}`) ? "Water" : null,
+    /garbage included|trash included|owner pays (?:for )?(?:trash|garbage)/i.test(`${amenitiesText} ${description}`) ? "Garbage" : null,
+    /internet included/i.test(`${amenitiesText} ${description}`) ? "Internet" : null,
+    /gas included|owner pays (?:for )?gas/i.test(`${amenitiesText} ${description}`) ? "Gas" : null,
+  ].filter(Boolean);
+  const parkingIncluded = /(?:parking|garage)(?: space)?\s+(?:is\s+)?included|(?:one|1)[ -](?:car )?parking(?: space)? included/i.test(description)
+    && !/(?:parking|garage)\s+(?:is\s+)?not included/i.test(description);
+  const parkingPrice = Number(description.match(/(?:parking|garage)[^.$]{0,50}\$\s*([\d,]+)/i)?.[1]?.replaceAll(",", "")
+    || description.match(/\$\s*([\d,]+)[^.$]{0,30}(?:parking|garage)/i)?.[1]?.replaceAll(",", ""));
+
+  return {
+    sourceUnitId,
+    sourceKind: "unit",
+    floorplan: listing.floorplan || null,
+    building: hotPadsBuildingName(address),
+    address,
+    beds,
+    baths: Number.isFinite(baths) ? baths : 0,
+    sqft: Number.isFinite(sqft) ? sqft : 0,
+    rent,
+    moveIn: hotPadsMoveIn(listing.details?.availabilityDate || listing.availabilityDate),
+    postedAt: hotPadsPostedAt(listing, checkedAt),
+    listingUrl,
+    parkingIncluded,
+    parking: parkingIncluded ? 0 : (Number.isFinite(parkingPrice) && parkingPrice > 0 ? parkingPrice : 450),
+    parkingConfidence: parkingIncluded
+      ? "Listing says parking is included"
+      : (Number.isFinite(parkingPrice) && parkingPrice > 0 ? "Listing price" : "Estimated — confirm with owner"),
+    utilitiesIncluded,
+    deposit: Number.isFinite(deposit) ? deposit : rent,
+    applicationFee: Number.isFinite(applicationFee) ? applicationFee : 40,
+    leaseTerm: listing.details?.leaseTerms || "Confirm with owner",
+  };
+}
+
+export function parseHotPadsAvailability(html, baseUrl, checkedAt = new Date(), allowInactive = false) {
+  const state = hotPadsState(html);
+  const listing = state?.currentListingDetails?.currentListing;
+  if (!listing) return null;
+
+  if (Array.isArray(listing.floorplans) && listing.floorplans.some((floorplan) => floorplan.units?.length)) {
+    return listing.floorplans.flatMap((floorplan) => (floorplan.units || []).map((unit) => hotPadsUnit({
+      ...listing,
+      active: true,
+      displayName: `${listing.address?.street || "Home"} #${unit.name}`,
+      floorplan: floorplan.name,
+      createdAgo: unit.createdAgo,
+      created: undefined,
+      availabilityDate: unit.availabilityDate,
+      listingMinMaxPriceBeds: {
+        minBeds: unit.beds,
+        minBaths: unit.baths,
+        minSqft: unit.sqft,
+        minPrice: unit.low,
+      },
+    }, baseUrl, checkedAt))).filter(Boolean);
+  }
+
+  const candidates = Array.isArray(listing.units) && listing.units.length
+    ? listing.units.filter((unit) => unit.active !== false)
+    : [listing];
+  return candidates.filter((unit) => allowInactive || unit.active !== false).map((unit) => hotPadsUnit(unit, baseUrl, checkedAt)).filter(Boolean);
+}
+
+export function reconcileHotPadsListings(freshUnits, sourceUrl, checkedAt = new Date()) {
+  const checkedLabel = formatCheckedLabel(checkedAt);
+  const seen = new Set();
+  const discoveredUnits = [];
+  for (const fresh of freshUnits.filter((unit) => unit.beds >= 1)) {
+    const key = `${slug(fresh.address)}-${slug(fresh.sourceUnitId)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const baseUtilityEstimate = fresh.beds >= 3 ? 275 : fresh.beds >= 2 ? 225 : 175;
+    const utilities = Math.max(90, baseUtilityEstimate - fresh.utilitiesIncluded.length * 20);
+    discoveredUnits.push({
+      id: `auto-zillow-${key}`,
+      building: fresh.building,
+      address: fresh.address,
+      unit: `Unit ${fresh.sourceUnitId}${fresh.floorplan ? ` · ${fresh.floorplan}` : ""}`,
+      beds: fresh.beds,
+      baths: fresh.baths,
+      sqft: fresh.sqft,
+      rent: fresh.rent,
+      fees: 0,
+      utilities,
+      insurance: 18,
+      parking: fresh.parking,
+      parkingIncluded: fresh.parkingIncluded,
+      parkingConfidence: fresh.parkingConfidence,
+      utilitiesIncluded: fresh.utilitiesIncluded,
+      moveIn: fresh.moveIn,
+      moveInLabel: formatMoveInLabel(fresh.moveIn, checkedAt),
+      postedAt: fresh.postedAt,
+      postedLabel: formatPostedLabel(fresh.postedAt),
+      checkedLabel,
+      sourceType: "zillow-condo",
+      sourceLabel: "Zillow/HotPads rental listing",
+      sourceUrl,
+      listingUrl: fresh.listingUrl,
+      confidence: "High",
+      leaseTerm: fresh.leaseTerm,
+      deposit: fresh.deposit,
+      applicationFee: fresh.applicationFee,
+      moveInFee: 0,
+      listedPriceLabel: "Zillow/HotPads asking rent",
+      pricingNote: "Rent and availability come from the live Zillow/HotPads listing. Utilities, insurance, parking, and any HOA move-in charge are estimated when the listing does not itemize them.",
+      amenities: ["In-unit laundry", "Building amenities"],
+      active: true,
+    });
+  }
+  return { overrides: {}, discoveredUnits, matchedCount: discoveredUnits.length };
+}
+
 function pacificIsoDate(date) {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-US", {
@@ -308,6 +516,29 @@ export function parseUdrAvailabilityCards(cards, checkedAt = new Date()) {
       listingUrl: card.listingUrl,
     };
   }).filter((unit) => unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
+}
+
+export function parseUdrPropertyModel(html, baseUrl, checkedAt = new Date()) {
+  const json = balancedJsonAfter(String(html), "window.udr.jsonObjPropertyViewModel =");
+  if (!json) return null;
+  const payload = JSON.parse(json);
+  return (payload.floorPlans || []).flatMap((floorplan) => (floorplan.units || []).map((unit) => {
+    const available = unit.AvailableDateLabel;
+    return {
+      sourceUnitId: String(unit.marketingName || unit.marketingFullName || "").replace(/^STE\s+/i, "").trim(),
+      sourceKind: "unit",
+      floorplan: String(unit.floorplanName || floorplan.Name || "Unknown").replace(/^Plan\s+/i, ""),
+      beds: Number(unit.bedrooms ?? floorplan.bedRooms),
+      baths: Number(unit.bathrooms ?? floorplan.bathRooms),
+      sqft: Number(unit.sqFt),
+      rent: Number(unit.lowestRent?.baseRent ?? unit.lowestRent?.rent),
+      fees: Number(unit.monthlyCharges) > 0 ? Number(unit.monthlyCharges) : undefined,
+      deposit: Number(unit.deposit ?? floorplan.deposit),
+      moveIn: /^now$/i.test(String(available || "")) ? pacificIsoDate(checkedAt) : toIsoDate(available),
+      listingUrl: unit.previewLink ? new URL(unit.previewLink, baseUrl).href : baseUrl,
+      active: unit.isAvailable !== false,
+    };
+  })).filter((unit) => unit.active && unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
 }
 
 export function parseModeraAvailabilityCards(cards) {
@@ -360,7 +591,6 @@ export function reconcileExactFeedUnits(existingUnits, freshUnits, checkedAt = n
         : `Unit ${fresh.sourceUnitId}${fresh.floorplan ? ` · Plan ${fresh.floorplan}` : ""}`,
       beds: fresh.beds,
       baths: fresh.baths,
-      sqft: fresh.sqft,
       rent: fresh.rent,
       moveIn,
       moveInLabel: fresh.moveIn === undefined
@@ -368,6 +598,7 @@ export function reconcileExactFeedUnits(existingUnits, freshUnits, checkedAt = n
         : formatMoveInLabel(moveIn, checkedAt),
       checkedLabel,
     };
+    if (Number.isFinite(fresh.sqft) && fresh.sqft > 0) values.sqft = fresh.sqft;
     if (fresh.postedAt) {
       values.postedAt = fresh.postedAt;
       values.postedLabel = formatPostedLabel(fresh.postedAt);
@@ -393,7 +624,7 @@ export function reconcileExactFeedUnits(existingUnits, freshUnits, checkedAt = n
   for (const existing of eligibleExisting) {
     if (!matchedIds.has(existing.id)) overrides[existing.id] = { active: false };
   }
-  return { overrides, discoveredUnits, matchedCount: matchedIds.size };
+  return { overrides, discoveredUnits, matchedCount: matchedIds.size + discoveredUnits.length };
 }
 
 function escapeRegex(value) {

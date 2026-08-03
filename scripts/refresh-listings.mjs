@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { chromium } from "playwright";
-import { sourceUnits } from "../data.js";
+import { sourceUnits, trackerSources } from "../data.js";
 import { refreshState as previousState } from "../refresh-state.js";
 import {
   extractKnownUnitOverride,
@@ -8,40 +8,83 @@ import {
   parseCompassBuildingAvailability,
   parseEquityAvailability,
   parseEssexAvailabilityText,
+  parseHotPadsAvailability,
+  parseHotPadsNeighborhoodSources,
   parseModeraAvailabilityCards,
   parseSolaireAvailability,
   parseSightMapAvailability,
   parseUdrAvailabilityCards,
+  parseUdrPropertyModel,
   rentCafeListingUrlFromOnclick,
   reconcileEquityUnits,
   reconcileExactFeedUnits,
+  reconcileHotPadsListings,
 } from "./lib/refresh-core.mjs";
 
 const now = new Date();
 const dryRun = process.argv.includes("--dry-run");
 const groupedSources = new Map();
 for (const unit of sourceUnits) {
-  if (!groupedSources.has(unit.sourceUrl)) groupedSources.set(unit.sourceUrl, []);
-  groupedSources.get(unit.sourceUrl).push(unit);
+  if (!groupedSources.has(unit.sourceUrl)) groupedSources.set(unit.sourceUrl, { existingUnits: [], kind: null, template: null });
+  groupedSources.get(unit.sourceUrl).existingUnits.push(unit);
+}
+for (const source of trackerSources) {
+  const entry = groupedSources.get(source.sourceUrl) || { existingUnits: [], kind: null, template: null };
+  groupedSources.set(source.sourceUrl, { ...entry, ...source, existingUnits: entry.existingUnits });
 }
 
-async function inspectSource(browser, sourceUrl, existingUnits) {
-  if (sourceUrl.includes("solairesf.com")) {
-    const response = await fetch(sourceUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; RinconRent/1.0; +https://tiffanysun1.github.io/rincon-rents/)" },
+async function fetchSource(sourceUrl) {
+  const response = await fetch(sourceUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (!response.ok) throw new Error(`source returned ${response.status}`);
+  return response.text();
+}
+
+async function inspectSource(browser, sourceUrl, config) {
+  const { existingUnits, kind, template } = config;
+  if (kind === "hotpads-neighborhood") {
+    const groupUrls = parseHotPadsNeighborhoodSources(await fetchSource(sourceUrl), sourceUrl);
+    if (!groupUrls) throw new Error("Zillow/HotPads neighborhood inventory was not found");
+    const groups = await runPool(groupUrls, 3, async (groupUrl) => {
+      const fresh = parseHotPadsAvailability(await fetchSource(groupUrl), groupUrl, now, true);
+      if (!fresh) throw new Error(`Zillow/HotPads listing data was not found at ${groupUrl}`);
+      return fresh;
     });
-    if (!response.ok) throw new Error(`official Solaire feed returned ${response.status}`);
-    const fresh = parseSolaireAvailability(await response.text(), sourceUrl);
+    return reconcileHotPadsListings(groups.flat(), sourceUrl, now);
+  }
+
+  if (kind === "hotpads-property") {
+    const fresh = parseHotPadsAvailability(await fetchSource(sourceUrl), sourceUrl, now);
+    if (!fresh) throw new Error("Zillow/HotPads property inventory was not found");
+    return reconcileHotPadsListings(fresh, sourceUrl, now);
+  }
+
+  if (kind === "compass") {
+    const parsed = parseCompassBuildingAvailability(await fetchSource(sourceUrl), sourceUrl);
+    if (!parsed) throw new Error("structured Compass rental inventory was not found");
+    const exclusions = new Set((config.excludeUnits || []).map((unit) => String(unit).toLowerCase()));
+    const fresh = parsed.filter((unit) => !exclusions.has(String(unit.sourceUnitId).toLowerCase()));
+    return reconcileExactFeedUnits(existingUnits, fresh, now, template);
+  }
+
+  if (kind === "udr-property") {
+    const fresh = parseUdrPropertyModel(await fetchSource(sourceUrl), sourceUrl, now);
+    if (!fresh) throw new Error("official UDR property inventory was not found");
+    return reconcileExactFeedUnits(existingUnits, fresh, now, template);
+  }
+
+  if (sourceUrl.includes("solairesf.com")) {
+    const fresh = parseSolaireAvailability(await fetchSource(sourceUrl), sourceUrl);
     if (!fresh.length) throw new Error("official Solaire unit feed was not found");
     return reconcileExactFeedUnits(existingUnits, fresh, now);
   }
 
   if (sourceUrl.includes("rentjasper.com")) {
-    const response = await fetch(sourceUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; RinconRent/1.0; +https://tiffanysun1.github.io/rincon-rents/)" },
-    });
-    if (!response.ok) throw new Error(`official Jasper page returned ${response.status}`);
-    const officialPage = await response.text();
+    const officialPage = await fetchSource(sourceUrl);
     const sightMapUrl = officialPage.match(/<iframe\b[^>]*\bsrc=["'](https:\/\/sightmap\.com\/embed\/[^"']+)/i)?.[1];
     if (!sightMapUrl) throw new Error("official Jasper SightMap was not found");
     const feedResponse = await fetch(sightMapUrl, {
@@ -54,6 +97,18 @@ async function inspectSource(browser, sourceUrl, existingUnits) {
       ? { ...existingUnits[0], beds: 1, utilities: 235, active: true }
       : null;
     return reconcileExactFeedUnits(existingUnits, fresh, now, template);
+  }
+
+  if (sourceUrl.includes("compass.com/building/")) {
+    const fresh = parseCompassBuildingAvailability(await fetchSource(sourceUrl), sourceUrl);
+    if (!fresh) throw new Error("structured Compass rental inventory was not found");
+    return reconcileExactFeedUnits(existingUnits, fresh, now, template);
+  }
+
+  if (sourceUrl.includes("udr.com")) {
+    const fresh = parseUdrPropertyModel(await fetchSource(sourceUrl), sourceUrl, now);
+    if (!fresh) throw new Error("official UDR property inventory was not found");
+    return reconcileExactFeedUnits(existingUnits, fresh, now, template || existingUnits[0]);
   }
 
   const context = await browser.newContext({
@@ -78,12 +133,6 @@ async function inspectSource(browser, sourceUrl, existingUnits) {
       return reconcileEquityUnits(existingUnits, fresh, now);
     }
 
-    if (sourceUrl.includes("compass.com/building/")) {
-      const fresh = parseCompassBuildingAvailability(await page.content(), sourceUrl);
-      if (!fresh) throw new Error("structured Compass rental inventory was not found");
-      return reconcileExactFeedUnits(existingUnits, fresh, now);
-    }
-
     if (sourceUrl.includes("moderarinconhill.com")) {
       const cards = await page.locator(".fp-group-item").evaluateAll((items) => items.map((card) => ({
         text: card.innerText,
@@ -91,16 +140,6 @@ async function inspectSource(browser, sourceUrl, existingUnits) {
       })));
       const fresh = parseModeraAvailabilityCards(cards);
       if (!fresh.length) throw new Error("official Modera floor-plan cards were not found");
-      return reconcileExactFeedUnits(existingUnits, fresh, now);
-    }
-
-    if (sourceUrl.includes("udr.com")) {
-      const cards = await page.locator(".unit-container").evaluateAll((items) => items.map((card) => ({
-        text: card.innerText,
-        listingUrl: card.querySelector('a[aria-label="Lease Apartment"]')?.href,
-      })));
-      const fresh = parseUdrAvailabilityCards(cards, now);
-      if (!fresh.length) throw new Error("official UDR unit cards were not found");
       return reconcileExactFeedUnits(existingUnits, fresh, now);
     }
 
@@ -176,9 +215,9 @@ const browser = await chromium.launch({
   ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {}),
 });
 const entries = [...groupedSources.entries()];
-const results = await runPool(entries, 3, async ([sourceUrl, existingUnits]) => {
+const results = await runPool(entries, 3, async ([sourceUrl, config]) => {
   try {
-    const refresh = await inspectSource(browser, sourceUrl, existingUnits);
+    const refresh = await inspectSource(browser, sourceUrl, config);
     return { sourceUrl, ok: true, ...refresh };
   } catch (error) {
     return { sourceUrl, ok: false, error: error.message };

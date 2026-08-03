@@ -5,13 +5,17 @@ import {
   parseCompassBuildingAvailability,
   parseEquityAvailability,
   parseEssexAvailabilityText,
+  parseHotPadsAvailability,
+  parseHotPadsNeighborhoodSources,
   parseModeraAvailabilityCards,
   parseSolaireAvailability,
   parseSightMapAvailability,
   parseUdrAvailabilityCards,
+  parseUdrPropertyModel,
   rentCafeListingUrlFromOnclick,
   reconcileEquityUnits,
   reconcileExactFeedUnits,
+  reconcileHotPadsListings,
 } from "./scripts/lib/refresh-core.mjs";
 
 const fixture = `<a href="/UnitFees/29921/1/712">Unit 712 costs</a><script>ea5.unitAvailability = ${JSON.stringify({
@@ -136,6 +140,76 @@ const compassResult = reconcileExactFeedUnits([
 ], compass, new Date("2026-08-02T22:00:00-07:00"));
 assert.equal(compassResult.overrides["portside-717"].moveIn, "2026-09-07", "building refresh should preserve the detail-page move-in date");
 assert.equal(compassResult.overrides["portside-717"].postedLabel, "Posted Aug 1, 2026");
+
+const hotPadsSearchFixture = `<script id="preloadState">window.__PRELOADED_STATE__ = ${JSON.stringify({
+  listings: { listingGroups: { byCoords: [
+    { active: true, displayName: "401 Harrison St", uriV2: "/401-harrison/building" },
+    { active: true, displayName: "399 Fremont", uriV2: "/399-fremont/pad" },
+    { active: false, displayName: "Old listing", uriV2: "/old/pad" },
+  ] } },
+})};</script>`;
+assert.deepEqual(
+  parseHotPadsNeighborhoodSources(hotPadsSearchFixture, "https://hotpads.com/rincon-hill/"),
+  ["https://hotpads.com/401-harrison/building"],
+  "the neighborhood adapter should follow active condo groups and leave managed buildings to their official feeds",
+);
+
+const hotPadsDirectFixture = `<script id="preloadState">window.__PRELOADED_STATE__ = ${JSON.stringify({
+  currentListingDetails: { currentListing: {
+    active: false,
+    units: [],
+    floorplans: [{ name: "Metadata-only plan", units: [] }],
+    address: { street: "401 Harrison St" },
+    displayName: "401 Harrison St #34A",
+    uriV2: "/401-harrison-st/34a/pad",
+    created: Date.parse("2026-08-03T07:00:00.000Z"),
+    listingMinMaxPriceBeds: { minPrice: 6495, minBeds: 1, minBaths: 1, minSqft: 840 },
+    details: { fullDescription: "One parking space included.", availabilityDate: "08/15/2026", leaseTerms: "12 Months" },
+    amenities: { amenities: ["Water included in rent", "Building Deposit Fee Minimum: 6495"] },
+  } },
+})};</script>`;
+const hotPadsDirect = parseHotPadsAvailability(
+  hotPadsDirectFixture,
+  "https://hotpads.com/401-harrison-st/34a/pad",
+  new Date("2026-08-03T12:00:00-07:00"),
+  true,
+);
+assert.equal(hotPadsDirect.length, 1, "a neighborhood-confirmed direct listing must parse even when its detail payload has empty units and floorplans arrays");
+assert.equal(hotPadsDirect[0].sourceUnitId, "34A");
+assert.equal(hotPadsDirect[0].building, "The Harrison");
+assert.equal(hotPadsDirect[0].parkingIncluded, true);
+assert.equal(hotPadsDirect[0].moveIn, "2026-08-15");
+const hotPadsResult = reconcileHotPadsListings(hotPadsDirect, "https://hotpads.com/rincon-hill/", new Date("2026-08-03T12:00:00-07:00"));
+assert.equal(hotPadsResult.discoveredUnits.length, 1);
+assert.equal(hotPadsResult.discoveredUnits[0].listingUrl, "https://hotpads.com/401-harrison-st/34a/pad");
+assert.equal(hotPadsResult.discoveredUnits[0].sourceType, "zillow-condo");
+
+const udrPropertyFixture = `<script>window.udr.jsonObjPropertyViewModel = ${JSON.stringify({
+  floorPlans: [{
+    Name: "A1B",
+    bedRooms: 1,
+    bathRooms: 1,
+    deposit: "725",
+    units: [{
+      isAvailable: true,
+      marketingName: "STE 3907",
+      bedrooms: 1,
+      bathrooms: 1,
+      sqFt: 739,
+      lowestRent: { baseRent: 6420 },
+      monthlyCharges: 0,
+      deposit: 725,
+      AvailableDateLabel: "Now",
+      previewLink: "/apartments-pricing/apartment/?number=3907",
+    }],
+  }],
+})};</script>`;
+const udrProperty = parseUdrPropertyModel(udrPropertyFixture, "https://www.udr.com/399-fremont/", new Date("2026-08-03T12:00:00-07:00"));
+assert.equal(udrProperty.length, 1);
+assert.equal(udrProperty[0].sourceUnitId, "3907");
+assert.equal(udrProperty[0].rent, 6420);
+assert.equal(udrProperty[0].fees, undefined, "zero embedded charges must not erase the published building fee model");
+assert.equal(udrProperty[0].listingUrl, "https://www.udr.com/apartments-pricing/apartment/?number=3907");
 
 const udr = parseUdrAvailabilityCards([
   {

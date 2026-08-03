@@ -22,7 +22,8 @@ function formatFetchedAt(iso) {
 }
 
 function homeSpecs(unit) {
-  return `${unit.beds} bed · ${unit.baths} bath${unit.baths === 1 ? "" : "s"} · ${unit.sqft.toLocaleString()} sq ft`;
+  const size = unit.sqft > 0 ? `${unit.sqft.toLocaleString()} sq ft` : "Size not listed";
+  return `${unit.beds} bed · ${unit.baths} bath${unit.baths === 1 ? "" : "s"} · ${size}`;
 }
 
 function displayedParking(unit) {

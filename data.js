@@ -16,6 +16,7 @@ const URLS = {
   infinity6b: "https://www.zillow.com/homedetails/318-Spear-St-UNIT-6B-San-Francisco-CA-94105/89236508_zpid/",
   metropolitan2405: "https://www.zillow.com/homedetails/355-1st-St-UNIT-S2405-San-Francisco-CA-94105/64971613_zpid/",
   metropolitan902: "https://www.zillow.com/homedetails/355-1st-St-UNIT-S902-San-Francisco-CA-94105/2089159962_zpid/",
+  lumina27d: "https://www.zillow.com/homedetails/201-Folsom-St-APT-27D-San-Francisco-CA-94105/249698470_zpid/",
 };
 
 const LISTING_URLS = {
@@ -313,6 +314,7 @@ const researchedUnits = [
   condo({ id: "infinity-6b", building: "The Infinity", address: "318 Spear St", unit: "Unit 6B", beds: 2, baths: 2, sqft: 1100, rent: 7000, utilities: 135, parking: 0, parkingConfidence: "1 assigned space included", parkingIncluded: true, moveIn: "2026-08-11", moveInLabel: "Aug 11", postedLabel: "Posted Jul 23, 2026", sourceUrl: URLS.infinity6b, deposit: 7000, listedPriceLabel: "Zillow total monthly price", pricingNote: "The owner says one assigned garage space, water, garbage and HOA are included. Estimate covers energy, internet and renter's insurance.", utilitiesIncluded: ["Water", "Garbage"], amenities: ["Parking included", "Heated lap pool", "Central A/C"] }),
   condo({ id: "metropolitan-s2405", building: "The Metropolitan", address: "355 1st St", unit: "Unit S2405", beds: 2, baths: 2, sqft: 1166, rent: 7250, utilities: 150, parking: 450, parkingConfidence: "Confirmed optional parking", moveIn: "2026-08-31", moveInLabel: "Aug 31", postedLabel: "Posted Jul 21, 2026", sourceUrl: URLS.metropolitan2405, deposit: 14000, listedPriceLabel: "Zillow asking rent", pricingNote: "Water and garbage are included; the listing explicitly prices parking at $450/month. Estimate adds energy, internet and renter's insurance.", utilitiesIncluded: ["Water", "Garbage"], amenities: ["Furnished", "City & bay views", "Central A/C"] }),
   condo({ id: "metropolitan-s902", building: "The Metropolitan", address: "355 1st St", unit: "Unit S902", beds: 2, baths: 2, sqft: 995, rent: 6850, utilities: 175, parking: 0, parkingConfidence: "1 space included", parkingIncluded: true, moveIn: "2026-08-15", moveInLabel: "Mid-August · confirm", postedLabel: "Posted Jul 21, 2026", sourceUrl: URLS.metropolitan902, deposit: 6850, listedPriceLabel: "Zillow asking rent", pricingNote: "The description says premium underground parking and storage are included. Zillow's header says available now while the description says mid-August, so the date needs confirmation.", utilitiesIncluded: [], amenities: ["Parking included", "Storage included", "Pool & fitness center"] }),
+  condo({ id: "lumina-27d", building: "LUMINA", address: "201 Folsom St", unit: "Unit 27D", beds: 1, baths: 1, sqft: 876, rent: 6895, utilities: 200, parking: 300, parkingConfidence: "Confirmed optional valet parking", moveIn: "2026-09-01", moveInLabel: "Sep 1", postedLabel: "Posted Jul 24, 2026", sourceUrl: URLS.lumina27d, deposit: 6895, listedPriceLabel: "Zillow asking rent", pricingNote: "Compass confirms the $300 parking fee and that the tenant pays electricity and gas. The estimate also includes internet and renter's insurance; confirm all building charges before applying.", amenities: ["Valet parking", "Lap pool", "Bridge views"], isNew: true }),
 ];
 
 export const sourceUnits = researchedUnits;
@@ -331,7 +333,7 @@ export const snapshotMetadata = {
   dataUpdatedAt: refreshState.dataUpdatedAt || "2026-08-02T18:00:00-07:00",
   lastRefreshAttemptAt: refreshState.lastRefreshAttemptAt,
   verifiedSourceCount: refreshState.verifiedSourceCount || 0,
-  totalSourceCount: refreshState.totalSourceCount || 12,
+  totalSourceCount: refreshState.totalSourceCount || 13,
 };
 
 export const monitoredBuildings = [
@@ -358,14 +360,6 @@ export const monitoredBuildings = [
     detail: "A Zillow neighborhood card showed Unit 4504, but the unit detail page says off market. It is not counted.",
     sourceUrl: "https://www.zillow.com/rincon-hill-san-francisco-ca/condos-for-rent/",
     tone: "warning",
-  },
-  {
-    building: "LUMINA",
-    address: "201 Folsom St",
-    status: "Building-level prices only",
-    detail: "Zillow showed building ranges, but exact active unit details were not consistently verifiable, so no synthetic unit cards were created.",
-    sourceUrl: "https://www.zillow.com/rincon-hill-san-francisco-ca/condos-for-rent/",
-    tone: "quiet",
   },
   {
     building: "The Harrison",
@@ -401,6 +395,11 @@ export function monthlyTotal(unit, includeParking = true) {
 
 export function upfrontTotal(unit) {
   return (unit.deposit || 0) + (unit.applicationFee || 0) + (unit.moveInFee || 0);
+}
+
+export function listingLinkLabel(unit) {
+  if (unit.sourceType === "zillow-condo") return "View listing";
+  return unit.listingUrl === unit.sourceUrl ? "View availability" : "View listing";
 }
 
 export function formatMoney(value) {

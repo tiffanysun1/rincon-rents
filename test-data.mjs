@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { units, sourceUnits, monitoredBuildings, snapshotMetadata, monthlyTotal, upfrontTotal } from "./data.js";
+import { units, sourceUnits, monitoredBuildings, snapshotMetadata, monthlyTotal, upfrontTotal, listingLinkLabel } from "./data.js";
 
-assert.equal(sourceUnits.length, 77, "the researched baseline should retain all 77 source offers");
-assert.equal(units.length, 65, "the public snapshot should contain 65 non-studio offers");
+assert.equal(sourceUnits.length, 78, "the researched baseline should retain all 78 source offers");
+assert.equal(units.length, 66, "the public snapshot should contain 66 non-studio offers");
 assert.equal(new Set(units.map((unit) => unit.id)).size, units.length, "unit ids must be unique");
-assert.equal(new Set(units.map((unit) => unit.building)).size, 10, "active non-studio units should cover ten buildings");
-assert.equal(monitoredBuildings.length, 6, "six additional buildings should remain visible in coverage");
+assert.equal(new Set(units.map((unit) => unit.building)).size, 11, "active non-studio units should cover eleven buildings");
+assert.equal(monitoredBuildings.length, 5, "five additional buildings should remain visible in coverage");
 assert.ok(units.every((unit) => unit.beds >= 1), "studios must never reach the public inventory");
 assert.equal(units.filter((unit) => unit.building === "500 Folsom").length, 15);
 assert.equal(units.filter((unit) => unit.building === "Spera").length, 13);
@@ -39,6 +39,12 @@ for (const unit of units) {
 const infinity = units.find((unit) => unit.id === "infinity-6b");
 assert.equal(infinity.parkingIncluded, true);
 assert.equal(monthlyTotal(infinity, true), monthlyTotal(infinity, false), "included parking must not be double-counted");
+
+const newest = units.find((unit) => unit.id === "lumina-27d");
+assert.equal(newest.isNew, true, "the newly discovered LUMINA listing should be marked for pinning");
+assert.equal(newest.listingUrl, "https://www.zillow.com/homedetails/201-Folsom-St-APT-27D-San-Francisco-CA-94105/249698470_zpid/");
+assert.equal(monthlyTotal(newest, true), 7413, "LUMINA should include utilities, insurance, and confirmed parking once");
+assert.equal(listingLinkLabel(newest), "View listing", "an exact Zillow condo URL should be labeled as a listing");
 
 const fremont = units.find((unit) => unit.id === "340-1a-f7");
 assert.equal(monthlyTotal(fremont, true), 6265, "340 Fremont should add modeled recurring costs and parking once");

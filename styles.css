@@ -108,6 +108,8 @@ select {
 
 .price-row:last-child { border-bottom: 0; }
 .price-row:hover { background: #fafbf8; }
+.price-row.is-new { background: #f2faf5; }
+.price-row.is-new:hover { background: #edf7f1; }
 
 .home-cell {
   display: flex;
@@ -133,6 +135,20 @@ select {
 .price-row strong { font-size: 14px; line-height: 1.35; }
 .price-row small { margin-top: 4px; color: #737b77; font-size: 11px; line-height: 1.35; }
 .home-cell strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.new-badge {
+  display: inline-block;
+  margin-right: 7px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #fff;
+  background: #176341;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
 .date-cell strong { font-weight: 650; }
 .total-cell strong { color: #176341; font-size: 17px; }
 

@@ -27,7 +27,7 @@ The included GitHub Actions workflow is the hosting and daily-update path:
 3. The site deploys on every push. At 6:17 AM Pacific each day, a browser-based refresh checks exact units, updates confirmed prices and dates, runs the validation suite, and deploys to GitHub Pages.
 4. **Actions → Refresh listings and deploy → Run workflow** triggers the same process on demand.
 
-The updater is intentionally conservative. Exact unit-and-price matches are required. A blocked or changed source keeps its last known good listing and freshness label; if no source can be verified, the workflow fails without changing the displayed update timestamp. The checked-in `refresh-state.js` records the last successful data update and per-source status.
+The updater is intentionally conservative. Exact unit-and-price matches are required. Solaire is read from its official structured unit feed, including its individual unit URLs. A blocked or changed source keeps its last known good listing and freshness label; if no source can be verified, the workflow fails without changing the displayed update timestamp. The checked-in `refresh-state.js` records the last successful data update and per-source status.
 
 ## Daily iMessage
 
@@ -41,4 +41,4 @@ It sends the site link through the signed-in macOS Messages app every day at 7:1
 
 ## Data caveat
 
-The baseline is a researched snapshot dated August 2, 2026, not a leasing API. Each result links to its source and labels estimated costs. Re-check the itemized monthly price, concessions, availability, and move-in charges with the property before applying.
+The baseline is a researched snapshot dated August 2, 2026, not a leasing API. Each result links to the deepest stable listing page the source exposes; Solaire and Zillow condos use individual-home pages, while sources that keep all units in one availability tool link to that tool. Re-check the itemized monthly price, concessions, availability, and move-in charges with the property before applying.

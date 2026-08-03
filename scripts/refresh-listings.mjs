@@ -7,6 +7,10 @@ import {
   extractRentCafeUnitOverride,
   parseEquityAvailability,
   parseEssexAvailabilityText,
+  parseModeraAvailabilityCards,
+  parseSolaireAvailability,
+  parseUdrAvailabilityCards,
+  rentCafeListingUrlFromOnclick,
   reconcileEquityUnits,
   reconcileExactFeedUnits,
 } from "./lib/refresh-core.mjs";
@@ -20,6 +24,16 @@ for (const unit of sourceUnits) {
 }
 
 async function inspectSource(browser, sourceUrl, existingUnits) {
+  if (sourceUrl.includes("solairesf.com")) {
+    const response = await fetch(sourceUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; RinconRent/1.0; +https://tiffanysun1.github.io/rincon-rents/)" },
+    });
+    if (!response.ok) throw new Error(`official Solaire feed returned ${response.status}`);
+    const fresh = parseSolaireAvailability(await response.text(), sourceUrl);
+    if (!fresh.length) throw new Error("official Solaire unit feed was not found");
+    return reconcileExactFeedUnits(existingUnits, fresh, now);
+  }
+
   const context = await browser.newContext({
     locale: "en-US",
     timezoneId: "America/Los_Angeles",
@@ -32,7 +46,7 @@ async function inspectSource(browser, sourceUrl, existingUnits) {
     const status = response?.status() || 0;
     const title = await page.title();
     const bodyText = await page.locator("body").innerText({ timeout: 10_000 });
-    if (status >= 400 || /access denied|captcha|verify you are human/i.test(`${title} ${bodyText.slice(0, 1000)}`)) {
+    if (status >= 400 || /access denied|captcha|verify you are human|have been blocked|unable to access/i.test(`${title} ${bodyText.slice(0, 1000)}`)) {
       throw new Error(`source blocked automated access (${status || "no status"})`);
     }
 
@@ -40,6 +54,26 @@ async function inspectSource(browser, sourceUrl, existingUnits) {
       const fresh = parseEquityAvailability(await page.content());
       if (!fresh.length) throw new Error("structured availability was not found");
       return reconcileEquityUnits(existingUnits, fresh, now);
+    }
+
+    if (sourceUrl.includes("moderarinconhill.com")) {
+      const cards = await page.locator(".fp-group-item").evaluateAll((items) => items.map((card) => ({
+        text: card.innerText,
+        listingUrl: card.querySelector('a[href*="/floorplans/"]')?.href,
+      })));
+      const fresh = parseModeraAvailabilityCards(cards);
+      if (!fresh.length) throw new Error("official Modera floor-plan cards were not found");
+      return reconcileExactFeedUnits(existingUnits, fresh, now);
+    }
+
+    if (sourceUrl.includes("udr.com")) {
+      const cards = await page.locator(".unit-container").evaluateAll((items) => items.map((card) => ({
+        text: card.innerText,
+        listingUrl: card.querySelector('a[aria-label="Lease Apartment"]')?.href,
+      })));
+      const fresh = parseUdrAvailabilityCards(cards, now);
+      if (!fresh.length) throw new Error("official UDR unit cards were not found");
+      return reconcileExactFeedUnits(existingUnits, fresh, now);
     }
 
     if (sourceUrl.includes("essexapartmenthomes.com")) {
@@ -62,9 +96,21 @@ async function inspectSource(browser, sourceUrl, existingUnits) {
 
     if (sourceUrl.includes("rentcafe.com")) {
       const overrides = {};
+      const listingRows = await page.locator("tr.fp-unit").evaluateAll((rows) => rows.map((row) => ({
+        unit: row.dataset.unitName?.trim(),
+        onclick: row.querySelector(".btn-apply")?.getAttribute("onclick"),
+      })));
+      const listingUrls = new Map(listingRows.map((row) => [
+        row.unit?.toLowerCase(),
+        rentCafeListingUrlFromOnclick(row.onclick),
+      ]));
       for (const unit of existingUnits) {
         const override = extractRentCafeUnitOverride(bodyText, unit, now);
-        if (override) overrides[unit.id] = override;
+        if (override) {
+          const unitNumber = unit.unit.match(/\bUnit\s+([A-Z0-9]+)/i)?.[1]?.toLowerCase();
+          const listingUrl = listingUrls.get(unitNumber);
+          overrides[unit.id] = listingUrl ? { ...override, listingUrl } : override;
+        }
       }
       const matchedCount = Object.keys(overrides).length;
       if (!matchedCount) throw new Error("no exact RentCafe unit rows were confirmed");
@@ -120,7 +166,9 @@ if (verified.length < minimumVerified) {
 
 const unitOverrides = { ...(previousState.unitOverrides || {}) };
 let discoveredUnits = [...(previousState.discoveredUnits || [])];
-const sourceStatuses = { ...(previousState.sourceStatuses || {}) };
+const sourceStatuses = Object.fromEntries(
+  entries.map(([sourceUrl]) => [sourceUrl, { ...(previousState.sourceStatuses?.[sourceUrl] || {}) }]),
+);
 for (const result of results) {
   const priorStatus = sourceStatuses[result.sourceUrl] || {};
   sourceStatuses[result.sourceUrl] = result.ok
@@ -128,11 +176,9 @@ for (const result of results) {
     : { ...priorStatus, status: "failed", lastAttemptAt: now.toISOString(), error: result.error };
   if (!result.ok) continue;
   Object.assign(unitOverrides, result.overrides);
-  if (result.discoveredUnits.length) {
-    const refreshedSource = result.sourceUrl;
-    discoveredUnits = discoveredUnits.filter((unit) => unit.sourceUrl !== refreshedSource);
-    discoveredUnits.push(...result.discoveredUnits);
-  }
+  const refreshedSource = result.sourceUrl;
+  discoveredUnits = discoveredUnits.filter((unit) => unit.sourceUrl !== refreshedSource);
+  discoveredUnits.push(...result.discoveredUnits);
 }
 
 const nextState = {

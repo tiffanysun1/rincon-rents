@@ -4,11 +4,15 @@ import {
   extractRentCafeUnitOverride,
   parseEquityAvailability,
   parseEssexAvailabilityText,
+  parseModeraAvailabilityCards,
+  parseSolaireAvailability,
+  parseUdrAvailabilityCards,
+  rentCafeListingUrlFromOnclick,
   reconcileEquityUnits,
   reconcileExactFeedUnits,
 } from "./scripts/lib/refresh-core.mjs";
 
-const fixture = `<script>ea5.unitAvailability = ${JSON.stringify({
+const fixture = `<a href="/UnitFees/29921/1/712">Unit 712 costs</a><script>ea5.unitAvailability = ${JSON.stringify({
   BedroomTypes: [
     { BedroomCount: 0, AvailableUnits: [{ UnitId: "217", FloorplanName: "Studio A", Floor: "Floor 2", Bed: 0, Bath: 1, SqFt: 482, BestTerm: { Price: 4410 }, AvailableDate: "8/2/2026" }] },
     { BedroomCount: 1, AvailableUnits: [{ UnitId: "712", FloorplanName: "1 Bedroom A", Floor: "Floor 7", Bed: 1, Bath: 1, SqFt: 738, BestTerm: { Price: 5590 }, AvailableDate: "8/9/2026" }] },
@@ -26,6 +30,7 @@ const baseline = [
 const reconciled = reconcileEquityUnits(baseline, parsed, new Date("2026-08-03T12:00:00-07:00"));
 assert.equal(reconciled.matchedCount, 2);
 assert.equal(reconciled.overrides.one.rent, 5590);
+assert.equal(reconciled.overrides.one.listingUrl, "https://www.equityapartments.com/UnitFees/29921/1/712");
 assert.equal(reconciled.overrides.two.rent, 8700);
 assert.equal(reconciled.discoveredUnits.length, 0, "a studio must not be discovered into public data");
 
@@ -55,6 +60,84 @@ const essexResult = reconcileExactFeedUnits([
 assert.equal(essexResult.overrides["500-0314"].rent, 5069);
 assert.equal(essexResult.discoveredUnits.length, 0);
 
+const solaireFixture = `<script type="application/json" id="jd-fp-data-script-app">${JSON.stringify({
+  units: [
+    {
+      apartment_number: "0509",
+      floorplan_title: "09",
+      bedrooms: "1",
+      bathrooms: "1",
+      square_feet: "610",
+      available_date: "1789621200",
+      permalink: "/floorplans/unit-exact-0509/",
+      price_entity: { adjusted: { low_no_fees: "4868", low: "4899.06" } },
+    },
+    {
+      apartment_number: "2411",
+      floorplan_title: "11",
+      bedrooms: "Studio",
+      bathrooms: "1",
+      square_feet: "441",
+      available_date: "1789102800",
+      permalink: "/floorplans/unit-studio-2411/",
+      price_entity: { adjusted: { low_no_fees: "4901", low: "4932.06" } },
+    },
+  ],
+})}</script>`;
+const solaire = parseSolaireAvailability(solaireFixture);
+assert.equal(solaire.length, 2);
+assert.equal(solaire[0].fees, 31.06);
+assert.equal(solaire[0].listingUrl, "https://solairesf.com/floorplans/unit-exact-0509/");
+const solaireResult = reconcileExactFeedUnits([
+  { id: "solaire-0509", building: "Solaire", sourceUrl: "https://solairesf.com/floorplans/", unit: "Unit 0509 · Plan 09", beds: 1, baths: 1, sqft: 610, rent: 4868 },
+], solaire, new Date("2026-08-03T12:00:00-07:00"));
+assert.equal(solaireResult.overrides["solaire-0509"].listingUrl, "https://solairesf.com/floorplans/unit-exact-0509/");
+assert.equal(solaireResult.overrides["solaire-0509"].fees, 31.06);
+assert.equal(solaireResult.discoveredUnits.length, 0, "Solaire studios must stay out of public data");
+
+const udr = parseUdrAvailabilityCards([
+  {
+    text: "Apartment 1516 1 Bed | 1 Bath | 825 Sq. Ft DETAILS Rent starting at: $6,072 at 13 month lease term Available Date: 8/6/2026 ALL-IN PRICE Floor: 15 Floor Plan: Plan A1C Deposit starting at: $775",
+    listingUrl: "https://www.udr.com/leaseoll/floorplan/?unitid=53",
+  },
+  {
+    text: "Apartment 999 Studio | 1 Bath | 450 Sq. Ft DETAILS Rent starting at: $4,000 Available Date: Now Floor Plan: Plan S1 Deposit starting at: $500",
+    listingUrl: "https://www.udr.com/leaseoll/floorplan/?unitid=999",
+  },
+], new Date("2026-08-03T12:00:00-07:00"));
+assert.equal(udr.length, 2);
+assert.equal(udr[0].sourceUnitId, "1516");
+assert.equal(udr[0].rent, 6072);
+assert.equal(udr[0].moveIn, "2026-08-06");
+assert.equal(udr[0].deposit, 775);
+const udrResult = reconcileExactFeedUnits([
+  { id: "388-1516", building: "388 Beale", sourceUrl: "https://www.udr.com/388", unit: "Unit 1516 · Plan A1C", beds: 1, baths: 1, sqft: 825, rent: 6072 },
+], udr, new Date("2026-08-03T12:00:00-07:00"));
+assert.equal(udrResult.overrides["388-1516"].listingUrl, "https://www.udr.com/leaseoll/floorplan/?unitid=53");
+assert.equal(udrResult.overrides["388-1516"].deposit, 775);
+assert.equal(udrResult.discoveredUnits.length, 0, "UDR studios must stay out of public data");
+
+const modera = parseModeraAvailabilityCards([
+  {
+    text: "A03 Beds / Baths 1 bd / 1 ba Rent Total Monthly Leasing Price Starting from $4,249 Calculate Deposit $500 Sq. Ft 581+ Only One Left! Details",
+    listingUrl: "https://www.moderarinconhill.com/floorplans/a03/",
+  },
+  {
+    text: "S01 Beds / Baths Studio / 1 ba Rent Total Monthly Leasing Price Starting from $4,453 Calculate Deposit $500 Sq. Ft 336+ Available Aug 17, 2026 Details",
+    listingUrl: "https://www.moderarinconhill.com/floorplans/s01/",
+  },
+]);
+assert.equal(modera.length, 2);
+assert.equal(modera[0].sourceUnitId, "A03");
+assert.equal(modera[0].rent, 4249);
+assert.equal(modera[0].sqft, 581);
+const moderaResult = reconcileExactFeedUnits([
+  { id: "modera-a03", building: "Modera Rincon Hill", sourceUrl: "https://www.moderarinconhill.com/", unit: "Plan A03 · 1 left", beds: 1, baths: 1, sqft: 581, rent: 4249 },
+], modera, new Date("2026-08-03T12:00:00-07:00"));
+assert.equal(moderaResult.overrides["modera-a03"].unit, "Plan A03");
+assert.equal(moderaResult.overrides["modera-a03"].listingUrl, "https://www.moderarinconhill.com/floorplans/a03/");
+assert.equal(moderaResult.discoveredUnits.length, 0, "Modera studios must stay out of public data");
+
 const rentCafe = extractRentCafeUnitOverride(
   "32E $5,481 - $6,740 Now 26E $5,486 - $6,814 Aug 31",
   { unit: "Unit 32E · Plan E", rent: 5481, moveIn: null, moveInLabel: "Confirm date" },
@@ -62,5 +145,9 @@ const rentCafe = extractRentCafeUnitOverride(
 );
 assert.equal(rentCafe.rent, 5481);
 assert.equal(rentCafe.moveIn, "08/03/2026".replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$1-$2"));
+assert.equal(
+  rentCafeListingUrlFromOnclick("RCILS.Lib.openApplyNow('https://www.rentcafe.com/apply?UnitID=42\\u0026FloorPlanID=9', 1)"),
+  "https://www.rentcafe.com/apply?UnitID=42&FloorPlanID=9",
+);
 
 console.log("Validated fail-closed refresh parsing and studio exclusion.");

@@ -7,9 +7,9 @@ const URLS = {
   fremont333: "https://www.333fremont.com/san-francisco/333-fremont/conventional/",
   folsom500: "https://www.essexapartmenthomes.com/apartments/san-francisco/500-folsom/floor-plans-and-pricing",
   spera: "https://www.rentcafe.com/apartments/ca/san-francisco/spera/default.aspx",
-  solaire: "https://www.zillow.com/apartments/san-francisco-ca/solaire/65g7KK/",
+  solaire: "https://solairesf.com/floorplans/",
   jasper: "https://www.zillow.com/apartments/san-francisco-ca/jasper/5Yy5Rt/",
-  beale388: "https://www.zillow.com/apartments/san-francisco-ca/388-beale/5XjQ4f/",
+  beale388: "https://www.udr.com/san-francisco-bay-area-apartments/san-francisco/388-beale/apartments-pricing/",
   beale388Fees: "https://www.udr.com/generatepdf/apartmentexpenses?pid=37412",
   fremont399: "https://www.udr.com/san-francisco-bay-area-apartments/san-francisco/399-fremont/apartments-pricing/",
   bridgeview1501: "https://www.zillow.com/homedetails/400-Beale-St-APT-1501-San-Francisco-CA-94105/80734962_zpid/",
@@ -17,6 +17,52 @@ const URLS = {
   metropolitan2405: "https://www.zillow.com/homedetails/355-1st-St-UNIT-S2405-San-Francisco-CA-94105/64971613_zpid/",
   metropolitan902: "https://www.zillow.com/homedetails/355-1st-St-UNIT-S902-San-Francisco-CA-94105/2089159962_zpid/",
 };
+
+const LISTING_URLS = {
+  fremont340712: "https://www.equityapartments.com/UnitFees/29921/1/712",
+  fremont3403903: "https://www.equityapartments.com/UnitFees/29921/1/3903",
+  moderaA03: "https://www.moderarinconhill.com/san-francisco-ca-apartments/modera-rincon-hill/floorplans/a03-992043/fp_name/occupancy_type/conventional/",
+  moderaA04: "https://www.moderarinconhill.com/san-francisco-ca-apartments/modera-rincon-hill/floorplans/a04-992046/fp_name/occupancy_type/conventional/",
+  moderaA10: "https://www.moderarinconhill.com/san-francisco-ca-apartments/modera-rincon-hill/floorplans/a10-992063/fp_name/occupancy_type/conventional/",
+  moderaB03: "https://www.moderarinconhill.com/san-francisco-ca-apartments/modera-rincon-hill/floorplans/b03-992062/fp_name/occupancy_type/conventional/",
+  moderaB04: "https://www.moderarinconhill.com/san-francisco-ca-apartments/modera-rincon-hill/floorplans/b04-992058/fp_name/occupancy_type/conventional/",
+  moderaB06: "https://www.moderarinconhill.com/san-francisco-ca-apartments/modera-rincon-hill/floorplans/b06-992057/fp_name/occupancy_type/conventional/",
+  moderaB08: "https://www.moderarinconhill.com/san-francisco-ca-apartments/modera-rincon-hill/floorplans/b08-992064/fp_name/occupancy_type/conventional/",
+  fremont333Folsom: "https://www.333fremont.com/floorplans/san-francisco-CA/333-fremont/folsom-1160602-1/",
+  fremont333Delancy1: "https://www.333fremont.com/floorplans/san-francisco-CA/333-fremont/delancy-1-1160608-1/",
+  fremont333Howard1: "https://www.333fremont.com/floorplans/san-francisco-CA/333-fremont/howard-1-1160624-1/",
+  fremont333Stevenson: "https://www.333fremont.com/floorplans/san-francisco-CA/333-fremont/stevenson-1160616-1/",
+  fremont333Main: "https://www.333fremont.com/floorplans/san-francisco-CA/333-fremont/main-1160648-1/",
+  fremont333King: "https://www.333fremont.com/floorplans/san-francisco-CA/333-fremont/king-1160650-1/",
+};
+
+const SPERA_APPLICATIONS = {
+  "32E": ["42496942", "5418875", "08/01/2026"],
+  "26E": ["42496853", "5418875", "09/02/2026"],
+  "32J": ["42496947", "5418879", "08/01/2026"],
+  "30J": ["42496921", "5418879", "08/07/2026"],
+  "30I": ["42496920", "5417804", "08/26/2026"],
+  "03H": ["42496956", "5417805", "08/21/2026"],
+  "08H": ["42497017", "5417805", "09/03/2026"],
+  "08B": ["42497011", "5418877", "08/05/2026"],
+  "32G": ["42496944", "5418878", "08/20/2026"],
+  "19G": ["42496764", "5418878", "09/02/2026"],
+  "23F": ["42496815", "5418883", "08/21/2026"],
+  PH33C: ["42497038", "5418888", "08/21/2026"],
+  PH34C: ["42497042", "5418888", "09/05/2026"],
+};
+
+function speraListingUrl(number) {
+  const [unitId, floorPlanId, moveInDate] = SPERA_APPLICATIONS[number];
+  return `https://www.rentcafe.com/onlineleasing/apartmentsforrent/oleapplication.aspx?Stepname=RentalOptions&myOlePropertyId=1857892&UnitID=${unitId}&FloorPlanID=${floorPlanId}&header=1&MoveInDate=${moveInDate}`;
+}
+
+function udrListingUrl(unitId, moveInDate) {
+  const [month, day, year] = moveInDate.split("/").map(Number);
+  const availableAt = Date.UTC(year, month - 1, day);
+  const returnUrl = "https%3A%2F%2Fwww.udr.com%2FFormTemplates%2FRedirectCloseOverlay%3Fu%3D%252Fsan-francisco-bay-area-apartments%252Fsan-francisco%252F388-beale%252Fapartments-pricing%252F%253F";
+  return `https://www.udr.com/leaseoll/floorplan/?pid=37412&realpagesiteid=2421377&unitid=${unitId}&moveindate=${moveInDate}&AvailableDateMilliseconds=${availableAt}&searchurl=${returnUrl}&maxDaysToShow=49`;
+}
 
 const checkedToday = "Checked Aug 2, 2026";
 
@@ -80,28 +126,28 @@ const researchedUnits = [
   managed({ id: "340-d-f6", building: "340 Fremont", address: "340 Fremont St", unit: "Plan D · floor 6", beds: 0, baths: 1, sqft: 550, rent: 4671, fees: 35, utilities: 205, insurance: 15, parking: 450, parkingConfidence: "Estimated — confirm", moveIn: "2026-08-04", moveInLabel: "Aug 4", floor: 6, sourceUrl: URLS.fremont340, deposit: 500, listedPriceLabel: "Base rent · 12 mo", pricingNote: "Building price and date are confirmed; non-rent costs are modeled until leasing supplies an itemized quote.", amenities: ["In-unit laundry", "24-hour concierge", "Rooftop terrace"] }),
   managed({ id: "340-i-f2", building: "340 Fremont", address: "340 Fremont St", unit: "Plan I · floor 2", beds: 0, baths: 1, sqft: 635, rent: 4507, fees: 35, utilities: 205, insurance: 15, parking: 450, parkingConfidence: "Estimated — confirm", moveIn: "2026-08-12", moveInLabel: "Aug 12", floor: 2, sourceUrl: URLS.fremont340, deposit: 500, listedPriceLabel: "Base rent · 12 mo", pricingNote: "Building price and date are confirmed; non-rent costs are modeled until leasing supplies an itemized quote.", amenities: ["In-unit laundry", "24-hour concierge", "Rooftop terrace"] }),
   managed({ id: "340-m-f37", building: "340 Fremont", address: "340 Fremont St", unit: "Plan M · floor 37", beds: 0, baths: 1, sqft: 518, rent: 5514, fees: 35, utilities: 205, insurance: 15, parking: 450, parkingConfidence: "Estimated — confirm", moveIn: "2026-08-18", moveInLabel: "Aug 18", floor: 37, sourceUrl: URLS.fremont340, deposit: 500, listedPriceLabel: "Base rent · 12 mo", pricingNote: "Bay/Bridge-view premium is reflected in rent. Non-rent costs are modeled estimates.", amenities: ["Bay & Bridge view", "In-unit laundry", "Rooftop terrace"] }),
-  managed({ id: "340-1a-f7", building: "340 Fremont", address: "340 Fremont St", unit: "1 Bedroom A · floor 7", beds: 1, baths: 1, sqft: 738, rent: 5540, fees: 35, utilities: 225, insurance: 15, parking: 450, parkingConfidence: "Estimated — confirm", moveIn: "2026-08-02", moveInLabel: "Available now", floor: 7, sourceUrl: URLS.fremont340, deposit: 500, listedPriceLabel: "Base rent · 12 mo", pricingNote: "Building price and date are confirmed; non-rent costs are modeled until leasing supplies an itemized quote.", amenities: ["In-unit laundry", "24-hour concierge", "Rooftop terrace"] }),
-  managed({ id: "340-2s-f39", building: "340 Fremont", address: "340 Fremont St", unit: "2 Bedroom S · floor 39", beds: 2, baths: 2, sqft: 1118, rent: 8634, fees: 35, utilities: 285, insurance: 15, parking: 450, parkingConfidence: "Estimated — confirm", moveIn: "2026-08-14", moveInLabel: "Aug 14", floor: 39, sourceUrl: URLS.fremont340, deposit: 500, listedPriceLabel: "Base rent · 12 mo", pricingNote: "Building price and date are confirmed; non-rent costs are modeled until leasing supplies an itemized quote.", amenities: ["Sunset view", "Balcony", "In-unit laundry"] }),
+  managed({ id: "340-1a-f7", building: "340 Fremont", address: "340 Fremont St", unit: "1 Bedroom A · floor 7", beds: 1, baths: 1, sqft: 738, rent: 5540, fees: 35, utilities: 225, insurance: 15, parking: 450, parkingConfidence: "Estimated — confirm", moveIn: "2026-08-02", moveInLabel: "Available now", floor: 7, sourceUrl: URLS.fremont340, listingUrl: LISTING_URLS.fremont340712, deposit: 500, listedPriceLabel: "Base rent · 12 mo", pricingNote: "Building price and date are confirmed; non-rent costs are modeled until leasing supplies an itemized quote.", amenities: ["In-unit laundry", "24-hour concierge", "Rooftop terrace"] }),
+  managed({ id: "340-2s-f39", building: "340 Fremont", address: "340 Fremont St", unit: "2 Bedroom S · floor 39", beds: 2, baths: 2, sqft: 1118, rent: 8634, fees: 35, utilities: 285, insurance: 15, parking: 450, parkingConfidence: "Estimated — confirm", moveIn: "2026-08-14", moveInLabel: "Aug 14", floor: 39, sourceUrl: URLS.fremont340, listingUrl: LISTING_URLS.fremont3403903, deposit: 500, listedPriceLabel: "Base rent · 12 mo", pricingNote: "Building price and date are confirmed; non-rent costs are modeled until leasing supplies an itemized quote.", amenities: ["Sunset view", "Balcony", "In-unit laundry"] }),
 
   // Modera — the source exposes floor-plan offers, not apartment numbers.
   managed({ id: "modera-s01", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan S01", beds: 0, baths: 1, sqft: 336, rent: 4453, fees: 0, utilities: 210, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: "2026-08-17", moveInLabel: "Aug 17", sourceUrl: URLS.modera, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "The advertised figure is the property's total monthly leasing price. We add estimated usage-based utilities and confirmed $480 parking; the $20 liability waiver should already be represented in the listed total.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
   managed({ id: "modera-s02", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan S02 · 1 left", beds: 0, baths: 1, sqft: 358, rent: 4244, fees: 0, utilities: 210, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "One home was shown, but the property did not expose its apartment number or move-in date. Utilities are estimated; parking starts at $480.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
   managed({ id: "modera-s07", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan S07 · 1 left", beds: 0, baths: 1, sqft: 454, rent: 4404, fees: 0, utilities: 210, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "One home was shown, but the property did not expose its apartment number or move-in date. Utilities are estimated; parking starts at $480.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
-  managed({ id: "modera-a03", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan A03 · 1 left", beds: 1, baths: 1, sqft: 581, rent: 4249, fees: 0, utilities: 235, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "The source shows at least 581 sq ft and one remaining home, without an apartment number or date.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
-  managed({ id: "modera-a04", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan A04 · 1 left", beds: 1, baths: 1, sqft: 673, rent: 4568, fees: 0, utilities: 235, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "The source shows one remaining home, without an apartment number or date.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
-  managed({ id: "modera-a10", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan A10 · 1 left", beds: 1, baths: 1, sqft: 508, rent: 4643, fees: 0, utilities: 235, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "The source shows at least 508 sq ft and one remaining home, without an apartment number or date.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
-  managed({ id: "modera-b03", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan B03", beds: 2, baths: 2, sqft: 914, rent: 8003, fees: 0, utilities: 285, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: "2026-08-08", moveInLabel: "Aug 8", sourceUrl: URLS.modera, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "The advertised figure includes required monthly charges; utilities are usage-based and modeled separately.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
-  managed({ id: "modera-b04", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan B04 · 1 left", beds: 2, baths: 1, sqft: 892, rent: 8110, fees: 0, utilities: 285, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "One home was shown, but the property did not expose its apartment number or move-in date.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
-  managed({ id: "modera-b06", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan B06 · 1 left", beds: 2, baths: 2, sqft: 957, rent: 8182, fees: 0, utilities: 285, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "One home was shown, but the property did not expose its apartment number or move-in date.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
-  managed({ id: "modera-b08", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan B08", beds: 2, baths: 2, sqft: 988, rent: 7700, fees: 0, utilities: 285, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: "2026-08-08", moveInLabel: "Aug 8", sourceUrl: URLS.modera, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "The advertised figure includes required monthly charges; utilities are usage-based and modeled separately.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
+  managed({ id: "modera-a03", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan A03 · 1 left", beds: 1, baths: 1, sqft: 581, rent: 4249, fees: 0, utilities: 235, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, listingUrl: LISTING_URLS.moderaA03, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "The source shows at least 581 sq ft and one remaining home, without an apartment number or date.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
+  managed({ id: "modera-a04", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan A04 · 1 left", beds: 1, baths: 1, sqft: 673, rent: 4568, fees: 0, utilities: 235, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, listingUrl: LISTING_URLS.moderaA04, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "The source shows one remaining home, without an apartment number or date.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
+  managed({ id: "modera-a10", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan A10 · 1 left", beds: 1, baths: 1, sqft: 508, rent: 4643, fees: 0, utilities: 235, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, listingUrl: LISTING_URLS.moderaA10, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "The source shows at least 508 sq ft and one remaining home, without an apartment number or date.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
+  managed({ id: "modera-b03", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan B03", beds: 2, baths: 2, sqft: 914, rent: 8003, fees: 0, utilities: 285, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: "2026-08-08", moveInLabel: "Aug 8", sourceUrl: URLS.modera, listingUrl: LISTING_URLS.moderaB03, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "The advertised figure includes required monthly charges; utilities are usage-based and modeled separately.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
+  managed({ id: "modera-b04", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan B04 · 1 left", beds: 2, baths: 1, sqft: 892, rent: 8110, fees: 0, utilities: 285, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, listingUrl: LISTING_URLS.moderaB04, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "One home was shown, but the property did not expose its apartment number or move-in date.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
+  managed({ id: "modera-b06", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan B06 · 1 left", beds: 2, baths: 2, sqft: 957, rent: 8182, fees: 0, utilities: 285, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: null, moveInLabel: "Confirm date", sourceUrl: URLS.modera, listingUrl: LISTING_URLS.moderaB06, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "One home was shown, but the property did not expose its apartment number or move-in date.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
+  managed({ id: "modera-b08", building: "Modera Rincon Hill", address: "390 1st St", unit: "Plan B08", beds: 2, baths: 2, sqft: 988, rent: 7700, fees: 0, utilities: 285, insurance: 0, parking: 480, parkingConfidence: "Confirmed starting price", moveIn: "2026-08-08", moveInLabel: "Aug 8", sourceUrl: URLS.modera, listingUrl: LISTING_URLS.moderaB08, costSourceUrl: URLS.moderaFees, deposit: 500, listedPriceLabel: "Property total monthly price", pricingNote: "The advertised figure includes required monthly charges; utilities are usage-based and modeled separately.", amenities: ["Smart thermostat", "In-unit laundry", "Controlled access"] }),
 
   // 333 Fremont — six exact unit numbers currently exposed.
-  managed({ id: "333-305", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 305 · Folsom", beds: 1, baths: 1, sqft: 691, rent: 5095, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: "2026-07-29", moveInLabel: "Available now", floor: 3, sourceUrl: URLS.fremont333, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "The building separately discloses about $22–32 resident services, $10–13 pest control, $4.15 billing and a $220 historical-mean utility bill. Parking price is not published, so $450 is a neighborhood estimate.", amenities: ["Walk-in closet", "In-unit laundry", "Doorman"] }),
-  managed({ id: "333-311", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 311 · Delancy 1", beds: 1, baths: 1, sqft: 740, rent: 5345, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: "2026-07-30", moveInLabel: "Available now", floor: 3, sourceUrl: URLS.fremont333, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "Published recurring-cost ranges are included in our estimate. Parking remains a modeled amount pending a quote.", amenities: ["In-unit laundry", "Doorman", "Fitness center"] }),
-  managed({ id: "333-806", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 806 · Howard 1", beds: 1, baths: 1, sqft: 681, rent: 5895, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: null, moveInLabel: "Confirm date", floor: 8, sourceUrl: URLS.fremont333, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "The source exposes the unit and price but not a date in the current aggregate view. Published recurring-cost ranges are included.", amenities: ["In-unit laundry", "Doorman", "Fitness center"] }),
-  managed({ id: "333-702", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 702 · Stevenson", beds: 1, baths: 1, sqft: 724, rent: 6645, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: null, moveInLabel: "Confirm date", floor: 7, sourceUrl: URLS.fremont333, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "The source exposes the unit and price but not a date in the current aggregate view. Published recurring-cost ranges are included.", amenities: ["In-unit laundry", "Doorman", "Fitness center"] }),
-  managed({ id: "333-208", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 208 · Main", beds: 2, baths: 2, sqft: 1193, rent: 8049, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: "2026-08-17", moveInLabel: "Aug 17", floor: 2, sourceUrl: URLS.fremont333, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "Published recurring-cost ranges are included in our estimate. Parking remains a modeled amount pending a quote.", amenities: ["Walk-in closet", "Premium upgrade", "In-unit laundry"] }),
-  managed({ id: "333-609", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 609 · King", beds: 2, baths: 2, sqft: 1095, rent: 8324, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: "2026-08-24", moveInLabel: "Aug 24", floor: 6, sourceUrl: URLS.fremont333, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "Published recurring-cost ranges are included in our estimate. Parking remains a modeled amount pending a quote.", amenities: ["Bridge view", "Large balcony", "Premium upgrade"] }),
+  managed({ id: "333-305", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 305 · Folsom", beds: 1, baths: 1, sqft: 691, rent: 5095, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: "2026-07-29", moveInLabel: "Available now", floor: 3, sourceUrl: URLS.fremont333, listingUrl: LISTING_URLS.fremont333Folsom, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "The building separately discloses about $22–32 resident services, $10–13 pest control, $4.15 billing and a $220 historical-mean utility bill. Parking price is not published, so $450 is a neighborhood estimate.", amenities: ["Walk-in closet", "In-unit laundry", "Doorman"] }),
+  managed({ id: "333-311", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 311 · Delancy 1", beds: 1, baths: 1, sqft: 740, rent: 5345, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: "2026-07-30", moveInLabel: "Available now", floor: 3, sourceUrl: URLS.fremont333, listingUrl: LISTING_URLS.fremont333Delancy1, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "Published recurring-cost ranges are included in our estimate. Parking remains a modeled amount pending a quote.", amenities: ["In-unit laundry", "Doorman", "Fitness center"] }),
+  managed({ id: "333-806", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 806 · Howard 1", beds: 1, baths: 1, sqft: 681, rent: 5895, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: null, moveInLabel: "Confirm date", floor: 8, sourceUrl: URLS.fremont333, listingUrl: LISTING_URLS.fremont333Howard1, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "The source exposes the unit and price but not a date in the current aggregate view. Published recurring-cost ranges are included.", amenities: ["In-unit laundry", "Doorman", "Fitness center"] }),
+  managed({ id: "333-702", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 702 · Stevenson", beds: 1, baths: 1, sqft: 724, rent: 6645, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: null, moveInLabel: "Confirm date", floor: 7, sourceUrl: URLS.fremont333, listingUrl: LISTING_URLS.fremont333Stevenson, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "The source exposes the unit and price but not a date in the current aggregate view. Published recurring-cost ranges are included.", amenities: ["In-unit laundry", "Doorman", "Fitness center"] }),
+  managed({ id: "333-208", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 208 · Main", beds: 2, baths: 2, sqft: 1193, rent: 8049, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: "2026-08-17", moveInLabel: "Aug 17", floor: 2, sourceUrl: URLS.fremont333, listingUrl: LISTING_URLS.fremont333Main, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "Published recurring-cost ranges are included in our estimate. Parking remains a modeled amount pending a quote.", amenities: ["Walk-in closet", "Premium upgrade", "In-unit laundry"] }),
+  managed({ id: "333-609", building: "333 Fremont", address: "333 Fremont St", unit: "Unit 609 · King", beds: 2, baths: 2, sqft: 1095, rent: 8324, fees: 49, utilities: 220, insurance: 15, parking: 450, parkingConfidence: "Estimated — contact property", moveIn: "2026-08-24", moveInLabel: "Aug 24", floor: 6, sourceUrl: URLS.fremont333, listingUrl: LISTING_URLS.fremont333King, deposit: 1500, listedPriceLabel: "Property total shown", pricingNote: "Published recurring-cost ranges are included in our estimate. Parking remains a modeled amount pending a quote.", amenities: ["Bridge view", "Large balcony", "Premium upgrade"] }),
 
   // 500 Folsom — exact non-studio units from the official Essex availability steps.
   ...[
@@ -176,6 +222,7 @@ const researchedUnits = [
     moveIn,
     moveInLabel,
     sourceUrl: URLS.spera,
+    listingUrl: speraListingUrl(number),
     deposit: 1200,
     applicationFee: 65,
     listedPriceLabel: "Base-rent range minimum",
@@ -183,37 +230,64 @@ const researchedUnits = [
     amenities: ["In-unit laundry", "Garage", "Rooftop deck"],
   })),
 
-  // Solaire — Zillow property feed includes required monthly fees in the shown price.
-  zillowBuilding({ id: "solaire-202", building: "Solaire", address: "299 Fremont St", unit: "Unit 202", beds: 1, baths: 1, sqft: 513, rent: 4602, fees: 0, utilities: 235, insurance: 15, parking: 450, parkingConfidence: "Estimated — price not public", moveIn: "2026-08-18", moveInLabel: "Aug 18", sourceUrl: URLS.solaire, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Zillow says required fixed monthly fees are included. Usage-based utilities, insurance and parking remain separate estimates.", amenities: ["In-unit laundry", "Pool", "Pet friendly"] }),
-  zillowBuilding({ id: "solaire-2601", building: "Solaire", address: "299 Fremont St", unit: "Unit 2601", beds: 0, baths: 1, sqft: 580, rent: 5173, fees: 0, utilities: 210, insurance: 15, parking: 450, parkingConfidence: "Estimated — price not public", moveIn: "2026-08-30", moveInLabel: "Aug 30", sourceUrl: URLS.solaire, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the Zillow total; variable utilities and parking are modeled.", amenities: ["In-unit laundry", "Pool", "Pet friendly"] }),
-  zillowBuilding({ id: "solaire-2303", building: "Solaire", address: "299 Fremont St", unit: "Unit 2303", beds: 1, baths: 1, sqft: 511, rent: 5437, fees: 0, utilities: 235, insurance: 15, parking: 450, parkingConfidence: "Estimated — price not public", moveIn: "2026-09-12", moveInLabel: "Sep 12", sourceUrl: URLS.solaire, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the Zillow total; variable utilities and parking are modeled.", amenities: ["In-unit laundry", "Pool", "Pet friendly"] }),
-  zillowBuilding({ id: "solaire-2609", building: "Solaire", address: "299 Fremont St", unit: "Unit 2609", beds: 1, baths: 1, sqft: 610, rent: 5497, fees: 0, utilities: 235, insurance: 15, parking: 450, parkingConfidence: "Estimated — price not public", moveIn: "2026-08-02", moveInLabel: "Available now", sourceUrl: URLS.solaire, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the Zillow total; variable utilities and parking are modeled.", amenities: ["In-unit laundry", "Pool", "Pet friendly"] }),
-  zillowBuilding({ id: "solaire-2802", building: "Solaire", address: "299 Fremont St", unit: "Unit 2802", beds: 1, baths: 1, sqft: 513, rent: 5504, fees: 0, utilities: 235, insurance: 15, parking: 450, parkingConfidence: "Estimated — price not public", moveIn: "2026-08-24", moveInLabel: "Aug 24", sourceUrl: URLS.solaire, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the Zillow total; variable utilities and parking are modeled.", amenities: ["In-unit laundry", "Pool", "Pet friendly"] }),
-  zillowBuilding({ id: "solaire-3103", building: "Solaire", address: "299 Fremont St", unit: "Unit 3103", beds: 1, baths: 1, sqft: 511, rent: 5677, fees: 0, utilities: 235, insurance: 15, parking: 450, parkingConfidence: "Estimated — price not public", moveIn: "2026-09-06", moveInLabel: "Sep 6", sourceUrl: URLS.solaire, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the Zillow total; variable utilities and parking are modeled.", amenities: ["In-unit laundry", "Pool", "Pet friendly"] }),
-  zillowBuilding({ id: "solaire-3202", building: "Solaire", address: "299 Fremont St", unit: "Unit 3202", beds: 1, baths: 1, sqft: 513, rent: 5877, fees: 0, utilities: 235, insurance: 15, parking: 450, parkingConfidence: "Estimated — price not public", moveIn: "2026-08-02", moveInLabel: "Available now", sourceUrl: URLS.solaire, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the Zillow total; variable utilities and parking are modeled.", amenities: ["In-unit laundry", "Pool", "Pet friendly"] }),
+  // Solaire — exact homes from Solaire's own availability feed.
+  ...[
+    ["0509", "09", 1, 1, 610, 4868, 31.06, "2026-09-17", "Sep 17", "https://solairesf.com/floorplans/unit-d17cbef2e38d6a3ba6791a623446b891/"],
+    ["1209", "09", 1, 1, 610, 5043, 31.06, "2026-09-07", "Sep 7", "https://solairesf.com/floorplans/unit-f7ccdfefb4c70b7e3a57e9075b16073f/"],
+    ["2303", "03", 1, 1, 511, 5358, 31.06, "2026-09-12", "Sep 12", "https://solairesf.com/floorplans/unit-6a3562dd197af54fb5ce400060d03400/"],
+    ["2609", "09", 1, 1, 610, 5418, 31.06, "2026-07-22", "Available now", "https://solairesf.com/floorplans/unit-594f7022b67f043dd77d83d8acc3d06f/"],
+    ["2802", "02", 1, 1, 513, 5408, 31.06, "2026-08-24", "Aug 24", "https://solairesf.com/floorplans/unit-64d57ffc3bd77e9c7db058c4df0193e0/"],
+    ["3103", "03", 1, 1, 511, 5598, 31.06, "2026-09-06", "Sep 6", "https://solairesf.com/floorplans/unit-54c3bdbe168d5b46aeccb6a1b7bb512d/"],
+    ["2411", "11", 0, 1, 441, 4901, 31.06, "2026-09-11", "Sep 11", "https://solairesf.com/floorplans/unit-b637e55b35464f54b6ef1ebe28729006/"],
+  ].map(([number, plan, beds, baths, sqft, rent, fees, moveIn, moveInLabel, listingUrl]) => managed({
+    id: `solaire-${number}`,
+    building: "Solaire",
+    address: "299 Fremont St",
+    unit: `Unit ${number} · Plan ${plan}`,
+    beds,
+    baths,
+    sqft,
+    rent,
+    fees,
+    utilities: beds === 0 ? 210 : 235,
+    insurance: 15,
+    parking: 450,
+    parkingConfidence: "Estimated — price not published",
+    moveIn,
+    moveInLabel,
+    sourceUrl: URLS.solaire,
+    listingUrl,
+    deposit: 1000,
+    applicationFee: 285,
+    listedPriceLabel: "Official base rent",
+    pricingNote: "Solaire's official total monthly leasing price adds $31.06 in mandatory monthly charges to base rent. Usage-based utilities, insurance, and parking remain modeled estimates.",
+    amenities: ["In-unit laundry", "Pool", "Pet friendly"],
+  })),
 
   // Jasper — total monthly prices from the live property feed.
   zillowBuilding({ id: "jasper-2507", building: "Jasper", address: "45 Lansing St", unit: "Unit 2507", beds: 0, baths: 1, sqft: 598, rent: 4725, fees: 0, utilities: 210, insurance: 15, parking: 500, parkingConfidence: "Estimated valet rate", moveIn: "2026-08-30", moveInLabel: "Aug 30", sourceUrl: URLS.jasper, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the source total. Usage-based utilities, insurance and valet parking are modeled separately.", amenities: ["Valet parking", "In-unit laundry", "Fitness center"] }),
   zillowBuilding({ id: "jasper-2406", building: "Jasper", address: "45 Lansing St", unit: "Unit 2406", beds: 0, baths: 1, sqft: 611, rent: 4935, fees: 0, utilities: 210, insurance: 15, parking: 500, parkingConfidence: "Estimated valet rate", moveIn: "2026-08-14", moveInLabel: "Aug 14", sourceUrl: URLS.jasper, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the source total. Usage-based utilities, insurance and valet parking are modeled separately.", amenities: ["Valet parking", "In-unit laundry", "Fitness center"] }),
   zillowBuilding({ id: "jasper-101", building: "Jasper", address: "45 Lansing St", unit: "Unit 101", beds: 0, baths: 1, sqft: 738, rent: 5260, fees: 0, utilities: 210, insurance: 15, parking: 500, parkingConfidence: "Estimated valet rate", moveIn: "2026-08-02", moveInLabel: "Available now", sourceUrl: URLS.jasper, deposit: 500, listedPriceLabel: "Total monthly price", pricingNote: "Required fixed monthly fees are included in the source total. Usage-based utilities, insurance and valet parking are modeled separately.", amenities: ["Valet parking", "In-unit laundry", "Fitness center"] }),
 
-  // 388 Beale — all ten units in the current building feed, with official UDR expenses.
+  // 388 Beale — exact homes and lease links from UDR's official availability page.
   ...[
-    ["1516", 1, 1, 825, 6072, "2026-08-06", "Aug 6"],
-    ["1013", 1, 1, 808, 6193, "2026-09-03", "Sep 3"],
-    ["1206", 1, 1, 808, 6330, "2026-08-02", "Available now"],
-    ["701", 1, 1, 825, 6336, "2026-09-19", "Sep 19"],
-    ["705", 1, 1, 951, 6480, "2026-09-17", "Sep 17"],
-    ["1411", 1, 1, 808, 6749, "2026-08-02", "Available now"],
-    ["1415", 2, 2, 1211, 7458, "2026-08-21", "Aug 21"],
-    ["1515", 2, 2, 1211, 7642, "2026-08-04", "Aug 4"],
-    ["1303", 2, 2, 1164, 7794, "2026-08-20", "Aug 20"],
-    ["1902", 2, 2, 1224, 8074, "2026-08-27", "Aug 27"],
-  ].map(([number, beds, baths, sqft, rent, moveIn, moveInLabel]) => zillowBuilding({
+    ["1206", "A1B", 1, 1, 808, 6330, "2026-08-02", "Available now", 825, "13", "08/04/2026"],
+    ["1411", "A1B", 1, 1, 808, 6749, "2026-08-02", "Available now", 825, "22", "08/04/2026"],
+    ["1515", "B2B", 2, 2, 1211, 7592, "2026-08-04", "Aug 4", 1225, "142", "08/04/2026"],
+    ["1516", "A1C", 1, 1, 825, 6072, "2026-08-06", "Aug 6", 775, "53", "08/06/2026"],
+    ["1303", "B2A", 2, 2, 1164, 7744, "2026-08-20", "Aug 20", 1125, "112", "08/20/2026"],
+    ["1415", "B2B", 2, 2, 1211, 7408, "2026-08-21", "Aug 21", 1225, "140", "08/21/2026"],
+    ["1013", "A1B", 1, 1, 808, 6193, "2026-09-03", "Sep 3", 825, "7", "09/03/2026"],
+    ["705", "A1G", 1, 1, 951, 6480, "2026-09-17", "Sep 17", 925, "100", "09/17/2026"],
+    ["701", "A1C", 1, 1, 825, 6336, "2026-09-19", "Sep 19", 775, "39", "09/19/2026"],
+    ["1808", "A1F", 1, 1, 861, 7194, "2026-09-26", "Sep 26", 1100, "93", "09/26/2026"],
+    ["1709", "B2G", 2, 2, 1286, 7748, "2026-09-26", "Sep 26", 1125, "203", "09/26/2026"],
+    ["703", "B2C", 2, 2, 1214, 7422, "2026-10-03", "Oct 3", 1250, "152", "10/03/2026"],
+  ].map(([number, plan, beds, baths, sqft, rent, moveIn, moveInLabel, deposit, udrUnitId, leaseMoveIn]) => managed({
     id: `388-${number}`,
     building: "388 Beale",
     address: "388 Beale St",
-    unit: `Unit ${number}`,
+    unit: `Unit ${number} · Plan ${plan}`,
     beds,
     baths,
     sqft,
@@ -226,8 +300,9 @@ const researchedUnits = [
     moveIn,
     moveInLabel,
     sourceUrl: URLS.beale388,
+    listingUrl: udrListingUrl(udrUnitId, leaseMoveIn),
     costSourceUrl: URLS.beale388Fees,
-    deposit: 600,
+    deposit,
     listedPriceLabel: "Base rent",
     pricingNote: "UDR publishes $57 trash, $15 package lockers, $445 reserved parking, $14 liability coverage, and $238 average electricity/energy/water. We add $70 internet inside the utility estimate.",
     amenities: ["In-unit laundry", "24-hour concierge", "Garage parking"],
@@ -243,7 +318,10 @@ const researchedUnits = [
 export const sourceUnits = researchedUnits;
 
 const refreshedUnits = [...researchedUnits, ...(refreshState.discoveredUnits || [])]
-  .map((unit) => ({ ...unit, ...(refreshState.unitOverrides?.[unit.id] || {}) }))
+  .map((unit) => {
+    const refreshed = { ...unit, ...(refreshState.unitOverrides?.[unit.id] || {}) };
+    return { ...refreshed, listingUrl: refreshed.listingUrl || refreshed.sourceUrl };
+  })
   .filter((unit) => unit.active !== false);
 
 // Product rule: studios are never exposed, even if a source adapter discovers one.

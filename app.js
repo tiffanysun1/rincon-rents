@@ -25,16 +25,13 @@ function homeSpecs(unit) {
   return `${unit.beds} bed · ${unit.baths} bath${unit.baths === 1 ? "" : "s"} · ${unit.sqft.toLocaleString()} sq ft`;
 }
 
-function sourceLabel(unit) {
-  if (unit.sourceType === "zillow-condo") return "Zillow condo";
-  if (unit.sourceType === "zillow-building") return "Zillow building";
-  if (unit.sourceType === "property-feed") return "Property feed";
-  return "Building site";
-}
-
 function displayedParking(unit) {
   if (unit.parkingIncluded) return "Included";
   return state.includeParking ? formatMoney(unit.parking) : "Excluded";
+}
+
+function listingLabel(unit) {
+  return unit.listingUrl === unit.sourceUrl ? "View availability" : "View listing";
 }
 
 function sortedUnits() {
@@ -60,7 +57,7 @@ function render() {
       <div role="cell" data-label="Fees + utilities"><strong>${formatMoney(unit.fees + unit.utilities + unit.insurance)}</strong></div>
       <div role="cell" data-label="Parking"><strong>${displayedParking(unit)}</strong></div>
       <div class="total-cell" role="cell" data-label="Estimated total"><strong>${formatMoney(monthlyTotal(unit, state.includeParking))}</strong><small>/ month</small></div>
-      <div role="cell" data-label="Source"><a href="${unit.sourceUrl}" target="_blank" rel="noreferrer">${sourceLabel(unit)}</a><small>${unit.checkedLabel}</small></div>
+      <div role="cell" data-label="Listing"><a href="${unit.listingUrl}" target="_blank" rel="noreferrer">${listingLabel(unit)}</a><small>${unit.checkedLabel}</small></div>
     </article>`).join("");
 }
 

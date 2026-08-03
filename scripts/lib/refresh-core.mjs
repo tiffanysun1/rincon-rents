@@ -58,6 +58,10 @@ export function parseEquityAvailability(html) {
   const json = balancedJsonAfter(html, "ea5.unitAvailability =");
   if (!json) return [];
   const payload = JSON.parse(json);
+  const listingUrls = new Map(
+    [...String(html).matchAll(/href=["']([^"']*\/UnitFees\/\d+\/\d+\/([A-Z0-9]+))["']/gi)]
+      .map((match) => [match[2].toLowerCase(), new URL(match[1], "https://www.equityapartments.com/").href]),
+  );
   return (payload.BedroomTypes || []).flatMap((group) =>
     (group.AvailableUnits || []).map((unit) => ({
       sourceUnitId: String(unit.UnitId || "").trim(),
@@ -68,6 +72,7 @@ export function parseEquityAvailability(html) {
       sqft: Number(unit.SqFt),
       rent: Number(unit.BestTerm?.Price),
       moveIn: toIsoDate(unit.AvailableDate),
+      listingUrl: listingUrls.get(String(unit.UnitId || "").toLowerCase()),
     })),
   ).filter((unit) => unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
 }
@@ -119,6 +124,7 @@ export function reconcileEquityUnits(existingUnits, freshUnits, checkedAt = new 
       moveInLabel: formatMoveInLabel(match.fresh.moveIn, checkedAt),
       checkedLabel,
     };
+    if (match.fresh.listingUrl) overrides[existing.id].listingUrl = match.fresh.listingUrl;
   }
 
   eligibleFresh.forEach((fresh, index) => {
@@ -137,6 +143,7 @@ export function reconcileEquityUnits(existingUnits, freshUnits, checkedAt = new 
       moveIn: fresh.moveIn,
       moveInLabel: formatMoveInLabel(fresh.moveIn, checkedAt),
       checkedLabel,
+      listingUrl: fresh.listingUrl || template.listingUrl,
       pricingNote: `${template.building} availability and rent were refreshed automatically from its structured building feed. Non-rent estimates use the building's existing cost model and should still be confirmed.`,
     });
   });
@@ -159,8 +166,94 @@ export function parseEssexAvailabilityText(bodyText) {
     .filter((unit) => unit.sourceUnitId && unit.rent > 0);
 }
 
+export function parseSolaireAvailability(html, baseUrl = "https://solairesf.com/") {
+  const script = String(html).match(/<script\b[^>]*\bid=["']jd-fp-data-script-app["'][^>]*>([\s\S]*?)<\/script>/i)?.[1];
+  if (!script) return [];
+  const payload = JSON.parse(script);
+
+  return (payload.units || []).map((unit) => {
+    const beds = /studio/i.test(String(unit.bedrooms)) ? 0 : Number(unit.bedrooms);
+    const rent = Number(unit.price_entity?.adjusted?.low_no_fees ?? String(unit.price || "").replace(/[^0-9.]/g, ""));
+    const total = Number(unit.price_entity?.adjusted?.low ?? unit.rent_min);
+    const availableAt = Number(unit.available_date);
+    const fees = Number.isFinite(total) && Number.isFinite(rent)
+      ? Math.max(0, Math.round((total - rent) * 100) / 100)
+      : undefined;
+    return {
+      sourceUnitId: String(unit.apartment_number || "").trim(),
+      floorplan: String(unit.floorplan_title || "Unknown").trim(),
+      beds,
+      baths: Number(unit.bathrooms),
+      sqft: Number(unit.square_feet),
+      rent,
+      fees,
+      moveIn: Number.isFinite(availableAt) ? new Date(availableAt * 1000).toISOString().slice(0, 10) : null,
+      listingUrl: unit.permalink ? new URL(unit.permalink, baseUrl).href : baseUrl,
+    };
+  }).filter((unit) => unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
+}
+
+function pacificIsoDate(date) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      timeZone: PACIFIC_TIME_ZONE,
+    }).formatToParts(date).map((part) => [part.type, part.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+export function parseUdrAvailabilityCards(cards, checkedAt = new Date()) {
+  return cards.map((card) => {
+    const text = String(card.text || "").replace(/\s+/g, " ");
+    const unit = text.match(/\bApartment\s+([A-Z0-9]+)/i)?.[1];
+    const specs = text.match(/\b(Studio|(\d+)\s+Beds?)\s*\|\s*([\d.]+)\s+Baths?\s*\|\s*([\d,]+)\s+Sq\.\s*Ft/i);
+    const rent = Number(text.match(/Rent starting at:\s*\$([\d,]+)/i)?.[1]?.replaceAll(",", ""));
+    const available = text.match(/Available Date:\s*(Now|\d{1,2}\/\d{1,2}\/\d{4})/i)?.[1];
+    return {
+      sourceUnitId: String(unit || "").trim(),
+      floorplan: text.match(/Floor Plan:\s*Plan\s+([A-Z0-9]+)/i)?.[1] || "Unknown",
+      beds: /^studio$/i.test(specs?.[1] || "") ? 0 : Number(specs?.[2]),
+      baths: Number(specs?.[3]),
+      sqft: Number(specs?.[4]?.replaceAll(",", "")),
+      rent,
+      deposit: Number(text.match(/Deposit starting at:\s*\$([\d,]+)/i)?.[1]?.replaceAll(",", "")),
+      moveIn: /^now$/i.test(available || "") ? pacificIsoDate(checkedAt) : toIsoDate(available),
+      listingUrl: card.listingUrl,
+    };
+  }).filter((unit) => unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
+}
+
+export function parseModeraAvailabilityCards(cards) {
+  return cards.map((card) => {
+    const text = String(card.text || "").replace(/\s+/g, " ").trim();
+    const specs = text.match(/^(\S+).*?Beds \/ Baths\s*(Studio|(\d+)\s*bd)\s*\/\s*([\d.]+)\s*ba/i);
+    const available = text.match(/Available\s+([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})/i)?.[1];
+    const availableDate = available ? new Date(`${available} 12:00:00 GMT-0700`) : null;
+    return {
+      sourceUnitId: specs?.[1],
+      sourceKind: "plan",
+      floorplan: specs?.[1],
+      beds: /^studio$/i.test(specs?.[2] || "") ? 0 : Number(specs?.[3]),
+      baths: Number(specs?.[4]),
+      sqft: Number(text.match(/Sq\.\s*Ft\s*([\d,]+)/i)?.[1]?.replaceAll(",", "")),
+      rent: Number(text.match(/\$([\d,]+)/)?.[1]?.replaceAll(",", "")),
+      deposit: Number(text.match(/Deposit\s*\$([\d,]+)/i)?.[1]?.replaceAll(",", "")),
+      moveIn: availableDate && !Number.isNaN(availableDate.valueOf()) ? availableDate.toISOString().slice(0, 10) : null,
+      listingUrl: card.listingUrl,
+    };
+  }).filter((unit) => unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
+}
+
+export function rentCafeListingUrlFromOnclick(onclick) {
+  const url = String(onclick || "").match(/openApplyNow\('([^']+)/)?.[1];
+  return url ? url.replaceAll("\\u0026", "&").replaceAll("&amp;", "&") : null;
+}
+
 function exactUnitId(unitLabel) {
-  return String(unitLabel).match(/\bUnit\s+([A-Z0-9]+)/i)?.[1]?.toLowerCase() || null;
+  return String(unitLabel).match(/\b(?:Unit|Plan)\s+([A-Z0-9]+)/i)?.[1]?.toLowerCase() || null;
 }
 
 export function reconcileExactFeedUnits(existingUnits, freshUnits, checkedAt = new Date()) {
@@ -177,7 +270,7 @@ export function reconcileExactFeedUnits(existingUnits, freshUnits, checkedAt = n
     const existing = byId.get(key);
     const values = {
       active: true,
-      unit: `Unit ${fresh.sourceUnitId} · Plan ${fresh.floorplan}`,
+      unit: fresh.sourceKind === "plan" ? `Plan ${fresh.sourceUnitId}` : `Unit ${fresh.sourceUnitId} · Plan ${fresh.floorplan}`,
       beds: fresh.beds,
       baths: fresh.baths,
       sqft: fresh.sqft,
@@ -186,6 +279,9 @@ export function reconcileExactFeedUnits(existingUnits, freshUnits, checkedAt = n
       moveInLabel: formatMoveInLabel(fresh.moveIn, checkedAt),
       checkedLabel,
     };
+    if (fresh.listingUrl) values.listingUrl = fresh.listingUrl;
+    if (Number.isFinite(fresh.fees)) values.fees = fresh.fees;
+    if (Number.isFinite(fresh.deposit)) values.deposit = fresh.deposit;
     if (existing) {
       overrides[existing.id] = values;
       matchedIds.add(existing.id);

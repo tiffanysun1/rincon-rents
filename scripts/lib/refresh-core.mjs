@@ -250,6 +250,144 @@ export function parseSightMapAvailability(html, listingUrl) {
   return null;
 }
 
+function htmlAttribute(source, name) {
+  return String(source).match(new RegExp(`\\b${name}=["']([^"']*)["']`, "i"))?.[1] || null;
+}
+
+function monthDayToIsoDate(value, checkedAt = new Date()) {
+  const match = String(value || "").match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (!match) return null;
+  const year = Number(new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    timeZone: PACIFIC_TIME_ZONE,
+  }).format(checkedAt));
+  const month = match[1].padStart(2, "0");
+  const day = match[2].padStart(2, "0");
+  let candidate = `${year}-${month}-${day}`;
+  const candidateDate = new Date(`${candidate}T12:00:00-07:00`);
+  if (candidateDate.valueOf() < checkedAt.valueOf() - 120 * 86_400_000) {
+    candidate = `${year + 1}-${month}-${day}`;
+  }
+  return candidate;
+}
+
+export function parseRelatedAveryAvailability(html, baseUrl, checkedAt = new Date()) {
+  return [...String(html).matchAll(/<article\b([^>]*\bdata-api-id=["'][^"']+["'][^>]*)>([\s\S]*?)<\/article>/gi)]
+    .map((match) => {
+      const attributes = match[1];
+      const content = match[2];
+      const apiId = htmlAttribute(attributes, "data-api-id");
+      const href = content.match(/<a\b[^>]*\bhref=["']([^"']+)["']/i)?.[1];
+      const title = content.match(/<p\b[^>]*class=["'][^"']*\btitle\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)?.[1]
+        ?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const variant = htmlAttribute(attributes, "data-variant") || "";
+      const beds = Number(htmlAttribute(attributes, "data-dimension6") ?? variant.match(/([\d.]+)bd/i)?.[1]);
+      const baths = Number(htmlAttribute(attributes, "data-dimension7") ?? variant.match(/([\d.]+)ba/i)?.[1]);
+      const rent = Number(String(htmlAttribute(attributes, "data-price") || "").replaceAll(",", ""));
+      return {
+        sourceUnitId: apiId,
+        sourceKind: "unit",
+        floorplan: title || null,
+        beds,
+        baths,
+        sqft: 0,
+        rent,
+        deposit: rent,
+        moveIn: monthDayToIsoDate(htmlAttribute(attributes, "data-dimension9"), checkedAt),
+        listingUrl: href ? new URL(href, baseUrl).href : baseUrl,
+      };
+    })
+    .filter((unit) => unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
+}
+
+export function parseRelatedAveryUnitDetail(html) {
+  const title = String(html).match(/<title>[^<]*Apartment\s+#?([A-Z0-9-]+)\s+at\s+Avery\s+450[^<]*<\/title>/i);
+  const descriptionUnit = String(html).match(/\bApartment\s+#?([A-Z0-9-]+)\s*\./i);
+  const sourceUnitId = title?.[1] || descriptionUnit?.[1];
+  return sourceUnitId ? { sourceUnitId } : null;
+}
+
+export function parseZillowBuildingAvailability(html, baseUrl) {
+  const script = String(html).match(/<script\b[^>]*\bid=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/i)?.[1];
+  if (!script) return null;
+  let payload;
+  try {
+    payload = JSON.parse(script);
+  } catch {
+    return null;
+  }
+  const listings = payload?.props?.pageProps?.componentProps?.initialReduxState?.gdp?.building?.ungroupedUnits;
+  if (!Array.isArray(listings)) return null;
+  return listings
+    .filter((listing) => listing.listingType === "FOR_RENT" && listing.zpid && listing.hdpUrl)
+    .map((listing) => ({
+      sourceUnitId: String(listing.unitNumber || "").replace(/^Unit\s+/i, "").trim(),
+      sourceKind: "unit",
+      floorplan: null,
+      address: /\/489-Harrison-St-/i.test(listing.hdpUrl) ? "489 Harrison St" : "401 Harrison St",
+      beds: Number(listing.beds),
+      baths: Number(listing.baths),
+      sqft: Number(listing.sqft),
+      rent: Number(listing.baseRent ?? listing.price),
+      deposit: Number(listing.baseRent ?? listing.price),
+      availableImmediately: String(listing.availableFrom) === "0",
+      listingUrl: new URL(listing.hdpUrl, baseUrl).href,
+    }))
+    .filter((unit) => unit.sourceUnitId && unit.rent > 0 && Number.isFinite(unit.beds));
+}
+
+function namedDateToIso(value) {
+  if (!value) return null;
+  const parsed = new Date(`${value} 12:00:00 GMT-0700`);
+  if (Number.isNaN(parsed.valueOf())) return null;
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+}
+
+export function parseCompassRentalDetail(html, checkedAt = new Date()) {
+  const source = String(html);
+  const text = source.replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/gi, " ").replace(/\s+/g, " ");
+  let description = "";
+  let amenities = [];
+  const jsonLd = source.match(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i)?.[1];
+  if (jsonLd) {
+    try {
+      const payload = JSON.parse(jsonLd);
+      const graph = Array.isArray(payload) ? payload : (payload?.["@graph"] || [payload]);
+      const listing = graph.find((item) => item?.description && (item?.numberOfBedrooms !== undefined || item?.offers));
+      description = String(listing?.description || "");
+      amenities = (listing?.amenityFeature || []).map((item) => String(item?.name || ""));
+    } catch {
+      // Structured details are an enhancement; the visible facts below are still usable.
+    }
+  }
+
+  const fee = Number(text.match(/Parking Fee \$:\s*\$?([\d,.]+)/i)?.[1]?.replaceAll(",", ""));
+  const parkingFeesYes = /Parking Fees:\s*Yes/i.test(text);
+  const parkingFeesNo = /Parking Fees:\s*No/i.test(text);
+  const includedInDescription = /(?:lease|rent)\s+includes?[^.]{0,80}(?:valet\s+)?parking|(?:one|1|two|2)\s+(?:car\s+)?parking[^.]{0,40}included/i.test(description);
+  const parkingIncluded = parkingFeesYes && Number.isFinite(fee) && fee > 0
+    ? false
+    : parkingFeesNo || includedInDescription || amenities.some((item) => /^Parking Included$/i.test(item));
+  const spaces = Number(text.match(/Total Parking Spaces\s*([\d.]+)/i)?.[1]
+    || text.match(/Num of Parking Spaces:\s*([\d.]+)/i)?.[1]);
+
+  const namedDate = description.match(/(?:move[- ]?in\s+(?:is\s+)?available|available\s+for\s+occupancy|ready\s+for\s+occupancy)\s*(?:beginning|on)?\s*([A-Z][a-z]+\s+\d{1,2},\s+\d{4})/i)?.[1];
+  const moveIn = namedDateToIso(namedDate)
+    || (/\bavailable now\b/i.test(description) ? pacificIsoDate(checkedAt) : null);
+
+  const result = { moveIn };
+  if (parkingIncluded) {
+    result.parkingIncluded = true;
+    result.parking = 0;
+    result.parkingConfidence = `${Number.isFinite(spaces) && spaces > 1 ? `${spaces} spaces` : "1 valet space"} included`;
+  } else if (parkingFeesYes && Number.isFinite(fee) && fee > 0) {
+    result.parkingIncluded = false;
+    result.parking = fee;
+    result.parkingConfidence = "Confirmed listing parking fee";
+  }
+  return result;
+}
+
 export function parseCompassBuildingAvailability(html, baseUrl) {
   const source = String(html);
   const marker = '"units":{"0":{"listings":[';
@@ -288,6 +426,7 @@ function hotPadsState(html) {
 }
 
 const MANAGED_HOTPADS_BUILDINGS = new Set([
+  "401 harrison st",
   "333 fremont",
   "340 fremont",
   "388 beale",
@@ -601,11 +740,18 @@ export function reconcileExactFeedUnits(existingUnits, freshUnits, checkedAt = n
     if (Number.isFinite(fresh.sqft) && fresh.sqft > 0) values.sqft = fresh.sqft;
     if (fresh.postedAt) {
       values.postedAt = fresh.postedAt;
-      values.postedLabel = formatPostedLabel(fresh.postedAt);
+      values.postedLabel = fresh.postedLabel || formatPostedLabel(fresh.postedAt);
     }
     if (fresh.listingUrl) values.listingUrl = fresh.listingUrl;
     if (Number.isFinite(fresh.fees)) values.fees = fresh.fees;
     if (Number.isFinite(fresh.deposit)) values.deposit = fresh.deposit;
+    if (Number.isFinite(fresh.utilities)) values.utilities = fresh.utilities;
+    if (Number.isFinite(fresh.parking)) values.parking = fresh.parking;
+    if (typeof fresh.parkingIncluded === "boolean") values.parkingIncluded = fresh.parkingIncluded;
+    if (fresh.parkingConfidence) values.parkingConfidence = fresh.parkingConfidence;
+    if (fresh.leaseTerm) values.leaseTerm = fresh.leaseTerm;
+    if (fresh.pricingNote) values.pricingNote = fresh.pricingNote;
+    if (Array.isArray(fresh.amenities)) values.amenities = fresh.amenities;
     if (existing) {
       overrides[existing.id] = values;
       matchedIds.add(existing.id);

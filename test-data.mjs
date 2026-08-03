@@ -16,6 +16,23 @@ assert.ok(units.some((unit) => unit.building === "MIRA"), "MIRA condo listings s
 assert.ok(units.some((unit) => unit.building === "Millennium Tower"), "Salesforce Park-adjacent listings should be present");
 assert.ok(!Number.isNaN(new Date(snapshotMetadata.dataUpdatedAt).valueOf()), "the displayed update timestamp must be valid");
 
+const avery450 = units.filter((unit) => unit.building === "Avery 450");
+assert.equal(avery450.length, 4, "Avery 450 should expose every current non-studio home from its official site");
+assert.ok(avery450.every((unit) => unit.sourceType === "official"));
+assert.ok(avery450.every((unit) => unit.sourceUrl === "https://www.relatedrentals.com/apartment-rentals/san-francisco/soma/avery-450"));
+assert.ok(avery450.every((unit) => unit.listingUrl.startsWith(`${unit.sourceUrl}/`)), "Avery 450 should link to each official unit page");
+assert.ok(avery450.some((unit) => unit.unit.startsWith("Unit 2309")), "new official Avery 450 units should be discovered automatically");
+
+const harrison10e = units.find((unit) => unit.id === "auto-the-harrison-10e");
+assert.equal(harrison10e.listingUrl, "https://www.zillow.com/homedetails/401-Harrison-St-APT-10E-San-Francisco-CA-94105/249698368_zpid/");
+assert.equal(harrison10e.parkingIncluded, true, "Harrison 10E's included valet space must not be charged twice");
+assert.equal(harrison10e.parking, 0);
+const harrison34a = units.find((unit) => unit.id === "auto-the-harrison-34a");
+assert.equal(harrison34a.parkingIncluded, false, "Harrison 34A explicitly lists a separate parking fee");
+assert.equal(harrison34a.parking, 300);
+assert.ok(units.filter((unit) => unit.building === "The Harrison" && ["Unit 41A", "Unit 46B"].includes(unit.unit)).every((unit) => unit.parkingIncluded));
+assert.equal(units.some((unit) => unit.id === "harrison-11a"), false, "removed Zillow rentals must leave the public inventory");
+
 for (const unit of units) {
   assert.ok(unit.building && unit.address && unit.unit, `${unit.id} must identify its home`);
   assert.ok(unit.rent > 0, `${unit.id} must have a positive advertised price`);

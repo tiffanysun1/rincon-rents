@@ -5,16 +5,21 @@ import { refreshState as previousState } from "../refresh-state.js";
 import {
   extractKnownUnitOverride,
   extractRentCafeUnitOverride,
+  formatCheckedLabel,
   parseCompassBuildingAvailability,
+  parseCompassRentalDetail,
   parseEquityAvailability,
   parseEssexAvailabilityText,
   parseHotPadsAvailability,
   parseHotPadsNeighborhoodSources,
   parseModeraAvailabilityCards,
+  parseRelatedAveryAvailability,
+  parseRelatedAveryUnitDetail,
   parseSolaireAvailability,
   parseSightMapAvailability,
   parseUdrAvailabilityCards,
   parseUdrPropertyModel,
+  parseZillowBuildingAvailability,
   rentCafeListingUrlFromOnclick,
   reconcileEquityUnits,
   reconcileExactFeedUnits,
@@ -25,6 +30,7 @@ const now = new Date();
 const dryRun = process.argv.includes("--dry-run");
 const groupedSources = new Map();
 for (const unit of sourceUnits) {
+  if (unit.active === false) continue;
   if (!groupedSources.has(unit.sourceUrl)) groupedSources.set(unit.sourceUrl, { existingUnits: [], kind: null, template: null });
   groupedSources.get(unit.sourceUrl).existingUnits.push(unit);
 }
@@ -44,6 +50,29 @@ async function fetchSource(sourceUrl) {
   return response.text();
 }
 
+function exactUnitNumber(label) {
+  return String(label || "").match(/\b(?:Unit|Plan)\s+([A-Z0-9-]+)/i)?.[1]?.toLowerCase() || null;
+}
+
+function priorDiscoveredUnits(sourceUrl, config) {
+  const sources = new Set([sourceUrl, ...(config.legacySourceUrls || [])]);
+  return (previousState.discoveredUnits || []).filter((unit) => sources.has(unit.sourceUrl));
+}
+
+function firstSeenLabel(date) {
+  return formatCheckedLabel(date).replace(/^Checked /, "First seen ");
+}
+
+function pacificDate(date) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "America/Los_Angeles",
+  }).formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 async function inspectSource(browser, sourceUrl, config) {
   const { existingUnits, kind, template } = config;
   if (kind === "hotpads-neighborhood") {
@@ -61,6 +90,83 @@ async function inspectSource(browser, sourceUrl, config) {
     const fresh = parseHotPadsAvailability(await fetchSource(sourceUrl), sourceUrl, now);
     if (!fresh) throw new Error("Zillow/HotPads property inventory was not found");
     return reconcileHotPadsListings(fresh, sourceUrl, now);
+  }
+
+  if (kind === "related-property") {
+    const cards = parseRelatedAveryAvailability(await fetchSource(sourceUrl), sourceUrl, now);
+    if (!cards.length) throw new Error("official Avery 450 inventory was not found");
+    const fresh = await runPool(cards, 3, async (card) => {
+      const details = parseRelatedAveryUnitDetail(await fetchSource(card.listingUrl));
+      if (!details) throw new Error(`official Avery 450 unit number was not found at ${card.listingUrl}`);
+      return { ...card, ...details };
+    });
+    const priorByUnit = new Map(priorDiscoveredUnits(sourceUrl, config)
+      .map((unit) => [exactUnitNumber(unit.unit), unit]));
+    for (const unit of fresh) {
+      const prior = priorByUnit.get(String(unit.sourceUnitId).toLowerCase());
+      unit.postedAt = prior?.postedAt || now.toISOString();
+      unit.postedLabel = prior?.postedAt
+        ? String(prior.postedLabel || firstSeenLabel(new Date(prior.postedAt))).replace(/^Posted /, "First seen ")
+        : firstSeenLabel(now);
+      unit.utilities = unit.beds >= 2 ? 225 : 175;
+      unit.parking = 450;
+      unit.parkingIncluded = false;
+      unit.parkingConfidence = "Estimated — official site does not publish parking price";
+    }
+    return reconcileExactFeedUnits(existingUnits, fresh, now, template);
+  }
+
+  if (kind === "zillow-building") {
+    const parsed = parseZillowBuildingAvailability(await fetchSource(sourceUrl), sourceUrl);
+    if (!parsed) throw new Error("structured Zillow building inventory was not found");
+    const exclusions = new Set((config.excludeUnits || []).map((unit) => String(unit).toLowerCase()));
+    const candidates = parsed.filter((unit) => unit.address === config.address
+      && !exclusions.has(String(unit.sourceUnitId).toLowerCase()));
+    if (!candidates.length) throw new Error("no qualifying Zillow building rentals were found");
+
+    let compassByUnit = new Map();
+    if (config.metadataSourceUrl) {
+      const compass = parseCompassBuildingAvailability(await fetchSource(config.metadataSourceUrl), config.metadataSourceUrl);
+      if (compass) compassByUnit = new Map(compass.map((unit) => [String(unit.sourceUnitId).toLowerCase(), unit]));
+    }
+    const priorByUnit = new Map(priorDiscoveredUnits(sourceUrl, config)
+      .map((unit) => [exactUnitNumber(unit.unit), unit]));
+    const fresh = await runPool(candidates, 3, async (unit) => {
+      const key = String(unit.sourceUnitId).toLowerCase();
+      const compass = compassByUnit.get(key);
+      const prior = priorByUnit.get(key);
+      let details = {};
+      if (compass?.listingUrl) {
+        try {
+          details = parseCompassRentalDetail(await fetchSource(compass.listingUrl), now);
+        } catch {
+          // Zillow still verifies the active rental; retain prior/estimated cost details.
+        }
+      }
+      const postedAt = compass?.postedAt || prior?.postedAt || now.toISOString();
+      const moveIn = details.moveIn || (unit.availableImmediately ? pacificDate(now) : prior?.moveIn || null);
+      const parkingIncluded = details.parkingIncluded ?? prior?.parkingIncluded ?? false;
+      const parking = details.parking ?? prior?.parking ?? 450;
+      const parkingConfidence = details.parkingConfidence || prior?.parkingConfidence || "Estimated — confirm with owner";
+      return {
+        ...unit,
+        ...details,
+        moveIn,
+        postedAt,
+        postedLabel: compass?.postedAt ? undefined : (prior?.postedLabel || firstSeenLabel(now)),
+        utilities: unit.beds >= 3 ? 275 : unit.beds >= 2 ? 225 : 175,
+        parkingIncluded,
+        parking,
+        parkingConfidence,
+        pricingNote: parkingIncluded
+          ? `The listing includes ${parkingConfidence.toLowerCase()}. Utilities, renter's insurance, and any HOA move-in charge are still estimated.`
+          : `The listing shows ${parking === 300 ? "$300 monthly" : "separately priced"} parking. Utilities, renter's insurance, and any HOA move-in charge are still estimated.`,
+        amenities: parkingIncluded
+          ? ["Valet parking included", "In-unit laundry", "Pool & fitness center"]
+          : ["Valet parking", "In-unit laundry", "Pool & fitness center"],
+      };
+    });
+    return reconcileExactFeedUnits(existingUnits, fresh, now, template);
   }
 
   if (kind === "compass") {
@@ -218,9 +324,9 @@ const entries = [...groupedSources.entries()];
 const results = await runPool(entries, 3, async ([sourceUrl, config]) => {
   try {
     const refresh = await inspectSource(browser, sourceUrl, config);
-    return { sourceUrl, ok: true, ...refresh };
+    return { sourceUrl, legacySourceUrls: config.legacySourceUrls || [], ok: true, ...refresh };
   } catch (error) {
-    return { sourceUrl, ok: false, error: error.message };
+    return { sourceUrl, legacySourceUrls: config.legacySourceUrls || [], ok: false, error: error.message };
   }
 });
 await browser.close();
@@ -243,8 +349,8 @@ for (const result of results) {
     : { ...priorStatus, status: "failed", lastAttemptAt: now.toISOString(), error: result.error };
   if (!result.ok) continue;
   Object.assign(unitOverrides, result.overrides);
-  const refreshedSource = result.sourceUrl;
-  discoveredUnits = discoveredUnits.filter((unit) => unit.sourceUrl !== refreshedSource);
+  const refreshedSources = new Set([result.sourceUrl, ...result.legacySourceUrls]);
+  discoveredUnits = discoveredUnits.filter((unit) => !refreshedSources.has(unit.sourceUrl));
   discoveredUnits.push(...result.discoveredUnits);
 }
 

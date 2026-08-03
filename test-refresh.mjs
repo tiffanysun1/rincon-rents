@@ -3,15 +3,19 @@ import {
   extractKnownUnitOverride,
   extractRentCafeUnitOverride,
   parseCompassBuildingAvailability,
+  parseCompassRentalDetail,
   parseEquityAvailability,
   parseEssexAvailabilityText,
   parseHotPadsAvailability,
   parseHotPadsNeighborhoodSources,
   parseModeraAvailabilityCards,
+  parseRelatedAveryAvailability,
+  parseRelatedAveryUnitDetail,
   parseSolaireAvailability,
   parseSightMapAvailability,
   parseUdrAvailabilityCards,
   parseUdrPropertyModel,
+  parseZillowBuildingAvailability,
   rentCafeListingUrlFromOnclick,
   reconcileEquityUnits,
   reconcileExactFeedUnits,
@@ -122,6 +126,93 @@ assert.equal(jasperResult.discoveredUnits.length, 1, "a future non-studio Jasper
 assert.equal(jasperResult.discoveredUnits[0].id, "auto-jasper-1710");
 assert.equal(jasperResult.discoveredUnits[0].beds, 1);
 
+const relatedFixture = `
+<article data-api-id="40882" data-price="5450" data-dimension6="1.0" data-dimension7="1.0" data-dimension9="08/11">
+  <a href="/apartment-rentals/san-francisco/soma/avery-450/corner-1-bedroom-1-bath-40882">
+    <p class="title">Corner 1 Bedroom, 1 Bath</p>
+  </a>
+</article>
+<article data-api-id="40997" data-price="9895" data-dimension6="2.0" data-dimension7="2.0" data-dimension9="08/09">
+  <a href="/apartment-rentals/san-francisco/soma/avery-450/corner-2-bedroom-2-bath-40997">
+    <p class="title">Corner 2 Bedroom, 2 Bath</p>
+  </a>
+</article>`;
+const related = parseRelatedAveryAvailability(
+  relatedFixture,
+  "https://www.relatedrentals.com/apartment-rentals/san-francisco/soma/avery-450",
+  new Date("2026-08-03T12:00:00-07:00"),
+);
+assert.equal(related.length, 2, "the official Avery 450 cards should parse");
+assert.equal(related[0].rent, 5450);
+assert.equal(related[0].moveIn, "2026-08-11");
+assert.equal(related[0].listingUrl, "https://www.relatedrentals.com/apartment-rentals/san-francisco/soma/avery-450/corner-1-bedroom-1-bath-40882");
+assert.deepEqual(
+  parseRelatedAveryUnitDetail("<title>Corner 1 Bedroom, 1 Bath Apartment #1408 at Avery 450</title>"),
+  { sourceUnitId: "1408" },
+  "the official detail page should supply the exact apartment number",
+);
+
+const zillowBuildingFixture = `<script id="__NEXT_DATA__" type="application/json">${JSON.stringify({
+  props: { pageProps: { componentProps: { initialReduxState: { gdp: { building: { ungroupedUnits: [
+    { listingType: "FOR_RENT", unitNumber: "Unit 10E", zpid: "249698368", price: 5850, baseRent: 5850, beds: 1, baths: 1, sqft: 707, availableFrom: "0", hdpUrl: "/homedetails/401-Harrison-St-APT-10E-San-Francisco-CA-94105/249698368_zpid/" },
+    { listingType: "OTHER", unitNumber: "Unit 10D", zpid: "249698367", price: 765000, beds: 1, baths: 1, sqft: 607, hdpUrl: "/homedetails/401-Harrison-St-APT-10D-San-Francisco-CA-94105/249698367_zpid/" },
+  ] } } } } } },
+})}</script>`;
+const zillowBuilding = parseZillowBuildingAvailability(zillowBuildingFixture, "https://www.zillow.com/b/the-harrison/");
+assert.equal(zillowBuilding.length, 1, "only active Zillow rentals should parse from the building page");
+assert.equal(zillowBuilding[0].sourceUnitId, "10E");
+assert.equal(zillowBuilding[0].availableImmediately, true);
+assert.equal(zillowBuilding[0].listingUrl, "https://www.zillow.com/homedetails/401-Harrison-St-APT-10E-San-Francisco-CA-94105/249698368_zpid/");
+
+const harrisonIncluded = parseCompassRentalDetail(`
+  <div>Total Parking Spaces 1</div><div>Parking Fees: No</div>
+  <script type="application/ld+json">${JSON.stringify({ "@graph": [{
+    numberOfBedrooms: 1,
+    description: "The lease includes valet parking for 1 vehicle.",
+    amenityFeature: [{ name: "Parking Included" }],
+  }] })}</script>
+`, new Date("2026-08-03T12:00:00-07:00"));
+assert.equal(harrisonIncluded.parkingIncluded, true);
+assert.equal(harrisonIncluded.parking, 0);
+assert.equal(harrisonIncluded.parkingConfidence, "1 valet space included");
+const harrisonPaid = parseCompassRentalDetail("<div>Parking Fee $: $300.00 Parking Fees: Yes</div>");
+assert.equal(harrisonPaid.parkingIncluded, false, "an explicit unit parking charge should override the building amenity");
+assert.equal(harrisonPaid.parking, 300);
+const harrisonMoveIn = parseCompassRentalDetail(`<script type="application/ld+json">${JSON.stringify({ "@graph": [{
+  numberOfBedrooms: 2,
+  description: "Move in available beginning September 7, 2026.",
+}] })}</script>`);
+assert.equal(harrisonMoveIn.moveIn, "2026-09-07");
+
+const harrisonResult = reconcileExactFeedUnits([], [{
+  ...zillowBuilding[0],
+  ...harrisonIncluded,
+  postedAt: "2026-07-21T07:00:00.000Z",
+  utilities: 175,
+}], new Date("2026-08-03T12:00:00-07:00"), {
+  id: "tracker-harrison",
+  building: "The Harrison",
+  address: "401 Harrison St",
+  unit: "Unit template",
+  beds: 1,
+  baths: 1,
+  sqft: 0,
+  rent: 1,
+  utilities: 175,
+  fees: 0,
+  insurance: 18,
+  parking: 450,
+  parkingIncluded: false,
+  parkingConfidence: "Estimated",
+  moveIn: null,
+  moveInLabel: "Confirm date",
+  sourceUrl: "https://www.zillow.com/b/the-harrison/",
+  listingUrl: "https://www.zillow.com/b/the-harrison/",
+  deposit: 1,
+});
+assert.equal(harrisonResult.discoveredUnits[0].parkingIncluded, true, "unit-level parking should survive reconciliation");
+assert.equal(harrisonResult.discoveredUnits[0].listingUrl, zillowBuilding[0].listingUrl);
+
 const compassFixture = `before "units":{"0":{"listings":[],"totalNumListings":0},"1":{"listings":[${JSON.stringify({
   location: { unitNumber: "717" },
   size: { bedrooms: 1, bathrooms: 1, squareFeet: 922 },
@@ -144,14 +235,15 @@ assert.equal(compassResult.overrides["portside-717"].postedLabel, "Posted Aug 1,
 const hotPadsSearchFixture = `<script id="preloadState">window.__PRELOADED_STATE__ = ${JSON.stringify({
   listings: { listingGroups: { byCoords: [
     { active: true, displayName: "401 Harrison St", uriV2: "/401-harrison/building" },
+    { active: true, displayName: "400 Beale St", uriV2: "/400-beale/building" },
     { active: true, displayName: "399 Fremont", uriV2: "/399-fremont/pad" },
     { active: false, displayName: "Old listing", uriV2: "/old/pad" },
   ] } },
 })};</script>`;
 assert.deepEqual(
   parseHotPadsNeighborhoodSources(hotPadsSearchFixture, "https://hotpads.com/rincon-hill/"),
-  ["https://hotpads.com/401-harrison/building"],
-  "the neighborhood adapter should follow active condo groups and leave managed buildings to their official feeds",
+  ["https://hotpads.com/400-beale/building"],
+  "the neighborhood adapter should follow active condo groups and leave dedicated Zillow/building feeds alone",
 );
 
 const hotPadsDirectFixture = `<script id="preloadState">window.__PRELOADED_STATE__ = ${JSON.stringify({

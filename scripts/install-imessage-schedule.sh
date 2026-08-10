@@ -86,5 +86,5 @@ plutil -lint "$plist_path"
 launchctl bootout "gui/$(id -u)" "$plist_path" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$plist_path"
 
-echo "Daily Messages notification scheduled for 8:30 AM local time, with same-day retry windows."
+echo "Daily Messages notification scheduled for 8:30 AM local time; a sleeping or locked Mac will send after the user wakes and unlocks it."
 echo "Run this once to test: /bin/zsh '$installed_wrapper' '$installed_script' '$recipient' '$site_url' '$support_dir'"

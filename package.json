@@ -11,7 +11,7 @@
     "build": "node scripts/build.mjs",
     "refresh": "node scripts/refresh-listings.mjs",
     "refresh:dry": "node scripts/refresh-listings.mjs --dry-run",
-    "test": "node test-data.mjs && node test-refresh.mjs"
+    "test": "node test-data.mjs && node test-data-variation.mjs && node test-refresh.mjs && node test-market-summary.mjs && node test-notification.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1"

@@ -536,7 +536,7 @@ export const units = refreshedUnits
   .filter((unit) => unit.beds >= 1)
   .map((unit) => ({ ...unit, isNew: isNewListing(unit) }));
 
-export const monitoredBuildings = [
+const monitoredBuildingCandidates = [
   {
     building: "Jasper",
     address: "45 Lansing St",
@@ -546,6 +546,10 @@ export const monitoredBuildings = [
     tone: "quiet",
   },
 ];
+
+export const monitoredBuildings = monitoredBuildingCandidates.filter(
+  (item) => !units.some((unit) => unit.building === item.building),
+);
 
 export const researchNotes = [
   "Prices are a point-in-time research snapshot, not a leasing quote.",

@@ -37,7 +37,7 @@ After the Pages URL is live, install the optional Mac schedule with:
 ./scripts/install-imessage-schedule.sh +14155551212 https://username.github.io/rincon-rents/
 ```
 
-It sends the site link through the signed-in macOS Messages app every day at 8:30 AM, after the 4:43 AM refresh. A failed or sleeping-Mac attempt is retried, with backup launch windows at 8:40 and 9:00; a local date stamp prevents duplicates after a successful send. The phone number is written only to the local LaunchAgent, not the repository. macOS will ask for permission the first time the script controls Messages. Use `./scripts/uninstall-imessage-schedule.sh` to remove it.
+It sends a concise market summary and the site link through the signed-in macOS Messages app every day at 8:30 AM, after the 4:43 AM refresh. The summary reports new and off-market homes, price changes, the lowest current one- and two-bedroom rents, and refresh coverage. Backup launch windows run at 8:40 and 9:00. If the Mac is sleeping, locked, or in dark wake, the active job waits and sends after the user wakes and unlocks it instead of exhausting its retries while Messages is unavailable. A local date stamp prevents duplicates after a successful send. The phone number is written only to the local LaunchAgent, not the repository. macOS will ask for permission the first time the script controls Messages. Use `./scripts/uninstall-imessage-schedule.sh` to remove it.
 
 ## Data caveat
 
